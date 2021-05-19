@@ -20,6 +20,20 @@
 
 #include "../include/getBMP.h"
 
+#define ID_LIGHT_OFF 0
+#define ID_LIGHT_ON 1
+#define ID_LIGHT_TURN_RED 2
+#define ID_LIGHT_TURN_GREEN 3
+#define ID_LIGHT_TURN_BLUE 4
+#define ID_LIGHT_TURN_WHITE 5
+#define ID_LIGHT_TURN_GREY 6
+
+#define ID_QUIT 7
+
+
+// Function declaration.
+void makeMenu();
+
 // Globals.
 static unsigned int texture[2]; // Array of texture indices.
 static float d = 0.0; // Distance parameter in gluLookAt().
@@ -71,6 +85,9 @@ void setup()
 
     // Turn on OpenGL texturing.
     glEnable(GL_TEXTURE_2D);
+
+    // Create menu.
+    makeMenu();
 }
 
 // Drawing routine.
@@ -132,6 +149,55 @@ void specialKeyInput(int key, int x, int y)
     if (key == GLUT_KEY_UP) d -= 0.1;
     if (key == GLUT_KEY_DOWN) d += 0.1;
     glutPostRedisplay();
+}
+
+// light adjustment menu
+// TODO: make this functioning
+void lightMenu(int id)
+{
+    switch (id) {
+        case ID_LIGHT_ON:
+            break;
+        case ID_LIGHT_OFF:
+            break;
+        case ID_LIGHT_TURN_WHITE:
+            break;
+        case ID_LIGHT_TURN_GREY:
+            break;
+        case ID_LIGHT_TURN_RED:
+            break;
+        case ID_LIGHT_TURN_GREEN:
+            break;
+        case ID_LIGHT_TURN_BLUE:
+            break;
+        default:
+            break;
+    }
+    glutPostRedisplay();
+}
+
+// right click menu function
+void rightMenu(int id)
+{
+    if (id == ID_QUIT) exit(0);
+}
+
+// create right click menu
+void makeMenu()
+{
+    int light_sub_menu = glutCreateMenu(lightMenu);
+    glutAddMenuEntry("Turn light on", ID_LIGHT_ON);
+    glutAddMenuEntry("Turn light off", ID_LIGHT_OFF);
+    glutAddMenuEntry("Turn light color to white", ID_LIGHT_TURN_WHITE);
+    glutAddMenuEntry("Turn light color to gray", ID_LIGHT_TURN_GREY);
+    glutAddMenuEntry("Turn light color to red", ID_LIGHT_TURN_RED);
+    glutAddMenuEntry("Turn light color to green", ID_LIGHT_TURN_GREEN);
+    glutAddMenuEntry("Turn light color to blue", ID_LIGHT_TURN_BLUE);
+
+    glutCreateMenu(rightMenu);
+    glutAddSubMenu("Light", light_sub_menu);
+    glutAddMenuEntry("Quit", ID_QUIT);
+    glutAttachMenu(GLUT_RIGHT_BUTTON);
 }
 
 // Routine to output interaction instructions to the C++ window.

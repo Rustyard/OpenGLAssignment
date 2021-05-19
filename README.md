@@ -1,3 +1,3 @@
 # OpenGLAssignment
 
-an OpenGL class assignment
+An OpenGL class assignment, for more information, see [TODOlist](TODOlist.md).
