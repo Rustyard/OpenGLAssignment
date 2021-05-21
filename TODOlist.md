@@ -1,12 +1,13 @@
 # OpenGLAssignment
 
-1. [ ] Model import
-   1. [ ] Improve normal calculate algorithm
+1. [x] Model import
+   1. [x] Improve normal calculate algorithm
 2. [x] Right click menu
    1. [ ] Make the menu actually functioning  
    2. [ ] Test it 
 3. [ ] Camera movement
 4. [ ] Model movement
+5. [ ] Get lighting work
 
 ## Quest book
 
