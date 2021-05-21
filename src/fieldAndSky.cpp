@@ -30,8 +30,15 @@
 #define ID_LIGHT_TURN_BLUE 4
 #define ID_LIGHT_TURN_WHITE 5
 #define ID_LIGHT_TURN_GREY 6
-
 #define ID_QUIT 7
+
+#define MODEL_NUMBERS 5
+
+#define OBJ_BUNNY 0
+#define OBJ_CAT 1
+#define OBJ_DOG 2
+#define OBJ_DUCK 3
+#define OBJ_TIGER 4
 
 
 #define PI 3.14159265358979
@@ -121,6 +128,7 @@ static vector<float> centerOf;
 static vector<float> diagonalLengthOf;
 // Vector section end
 
+// Implementation
 /**
  * Compute the bounding box for a specified object.
  * @param thisObj Indicating which object is being processed.
@@ -153,10 +161,10 @@ void ComputeBoundingBox(int thisObj)
 }
 
 /**
- * Compute the face normal and the volume of each face.
+ * Compute the face normal of each face.
  * @param thisObj Indicating which object is being processed.
  */
-void ComputeFaceNormalsAndVolumes(int thisObj)
+void ComputeFaceNormals(int thisObj)
 {
     float firstPoint[3] = { 0.0, 0.0, 0.0 };
     float secondPoint[3] = { 0.0, 0.0, 0.0 };
@@ -182,6 +190,7 @@ void ComputeFaceNormalsAndVolumes(int thisObj)
         thirdPoint[2]  = verticesOf[thisObj][facesOf[thisObj][i + 2] * 3 + 2];
         // FYI:                             ^This is a vertex index^
 
+        // TODO: can be removed after test
         // compute center point of each face
         tempCenterX = (firstPoint[0] + secondPoint[0] + thirdPoint[0]) / 3;
         tempCenterY = (firstPoint[1] + secondPoint[1] + thirdPoint[1]) / 3;
@@ -190,16 +199,6 @@ void ComputeFaceNormalsAndVolumes(int thisObj)
         faceCentersOf[thisObj].push_back(tempCenterX);
         faceCentersOf[thisObj].push_back(tempCenterY);
         faceCentersOf[thisObj].push_back(tempCenterZ);
-
-        // compute face volume for each face
-        float temp1P = (secondPoint[1] - firstPoint[1]) * (thirdPoint[2] - firstPoint[2]);
-        float temp2P = (secondPoint[2] - firstPoint[2]) * (thirdPoint[0] - firstPoint[0]);
-        float temp3P = (secondPoint[0] - firstPoint[0]) * (thirdPoint[1] - firstPoint[1]);
-        float temp1N = (secondPoint[1] - firstPoint[1]) * (thirdPoint[0] - firstPoint[0]);
-        float temp2N = (secondPoint[0] - firstPoint[0]) * (thirdPoint[2] - firstPoint[2]);
-        float temp3N = (secondPoint[2] - firstPoint[2]) * (thirdPoint[1] - firstPoint[1]);
-        float tempFaceVolume = (float)0.5 * abs(temp1P + temp2P + temp3P - temp1N - temp2N - temp3N);
-        faceVolumesOf[thisObj].push_back(tempFaceVolume);
 
         // calculate 2 vectors from three ordered points
         firstVector[0] = secondPoint[0] - firstPoint[0];
@@ -222,39 +221,75 @@ void ComputeFaceNormalsAndVolumes(int thisObj)
     }
 }
 
-// TODO: improve this algorithm and make it fast (below quadratic time)
+/**
+ * Compute the vertex normal of each vertex. Vertex normal is calculated with weighted averaging of
+ * face normals whose face contains that vertex.
+ * @param thisObj Indicating which object is being processed.
+ */
 void ComputeVertexNormals(int thisObj)
 {
     unsigned int vertexCount = verticesOf[thisObj].size() / 3;
 
+    float firstPoint[3] = { 0.0, 0.0, 0.0 };
+    float secondPoint[3] = { 0.0, 0.0, 0.0 };
+    float thirdPoint[3] = { 0.0, 0.0, 0.0 };
+
+    /**
+    * Stores the information of all faces each vertex is in, for current object only.
+    * Structure:
+    * {v0f0, v0f1, v0f2, ... }, {v1f0, v1f1, ... }, { ... }, ...
+    *   ^vertex0                  ^vertex1
+    * In code example:
+    *      vertexToFace[vertex0][face0]
+    */
+    vector<vector<int>> vertexToFace(vertexCount);
+
+    for (int i = 0; i < facesOf[thisObj].size(); i += 3) {
+        // get the x,y,z of first, second and third point of the face
+        firstPoint[0]  = verticesOf[thisObj][facesOf[thisObj][  i  ] * 3];
+        firstPoint[1]  = verticesOf[thisObj][facesOf[thisObj][  i  ] * 3 + 1];
+        firstPoint[2]  = verticesOf[thisObj][facesOf[thisObj][  i  ] * 3 + 2];
+        secondPoint[0] = verticesOf[thisObj][facesOf[thisObj][i + 1] * 3];
+        secondPoint[1] = verticesOf[thisObj][facesOf[thisObj][i + 1] * 3 + 1];
+        secondPoint[2] = verticesOf[thisObj][facesOf[thisObj][i + 1] * 3 + 2];
+        thirdPoint[0]  = verticesOf[thisObj][facesOf[thisObj][i + 2] * 3];
+        thirdPoint[1]  = verticesOf[thisObj][facesOf[thisObj][i + 2] * 3 + 1];
+        thirdPoint[2]  = verticesOf[thisObj][facesOf[thisObj][i + 2] * 3 + 2];
+
+        // compute face volume for each face
+        float temp1P = (secondPoint[1] - firstPoint[1]) * (thirdPoint[2] - firstPoint[2]);
+        float temp2P = (secondPoint[2] - firstPoint[2]) * (thirdPoint[0] - firstPoint[0]);
+        float temp3P = (secondPoint[0] - firstPoint[0]) * (thirdPoint[1] - firstPoint[1]);
+        float temp1N = (secondPoint[1] - firstPoint[1]) * (thirdPoint[0] - firstPoint[0]);
+        float temp2N = (secondPoint[0] - firstPoint[0]) * (thirdPoint[2] - firstPoint[2]);
+        float temp3N = (secondPoint[2] - firstPoint[2]) * (thirdPoint[1] - firstPoint[1]);
+        float tempFaceVolume = (float)0.5 * abs(temp1P + temp2P + temp3P - temp1N - temp2N - temp3N);
+        faceVolumesOf[thisObj].push_back(tempFaceVolume);
+
+        // register face information for its vertices
+        vertexToFace[facesOf[thisObj][  i  ]].push_back(i / 3);
+        vertexToFace[facesOf[thisObj][i + 1]].push_back(i / 3);
+        vertexToFace[facesOf[thisObj][i + 2]].push_back(i / 3);
+        // FYI:      ^-----this vertex-----^ is in      ^ this face
+    }
+
+
     for (int i = 0; i < vertexCount; i++) {
-        int j = 0;
+        int j;
         float resultNormalX = 0.0;
         float resultNormalY = 0.0;
         float resultNormalZ = 0.0;
-        std::vector<int> vertexPositionInFace;
-        std::vector<float> faceVolume;
-        std::vector<float> faceNormal;
+        vector<float> faceVolume;
+        vector<float> faceNormal;
         float totalVolume = 0.0;
 
-        // get the position where vertice i appeared OK
-        while (j < facesOf[thisObj].size()) {
-            if (facesOf[thisObj][j] == i) {
-                vertexPositionInFace.push_back(j);
-                j += 3 - (j % 3); // move to next face
-            }
-            else {
-                j++; // move to next point
-            }
-        }
-
-        // get the face volumes for each face which contains vertice i
+        // get the face volumes for each face which contains vertex i
         // get the normals too
-        for (j = 0; j < vertexPositionInFace.size(); j++) {
-            faceVolume.push_back(faceVolumesOf[thisObj][vertexPositionInFace[j] / 3]);
-            faceNormal.push_back(faceNormalsOf[thisObj][(vertexPositionInFace[j] / 3) * 3]);
-            faceNormal.push_back(faceNormalsOf[thisObj][(vertexPositionInFace[j] / 3) * 3 + 1]);
-            faceNormal.push_back(faceNormalsOf[thisObj][(vertexPositionInFace[j] / 3) * 3 + 2]); // bug fixed
+        for (j = 0; j < vertexToFace[i].size(); j++) {
+            faceVolume.push_back(faceVolumesOf[thisObj][vertexToFace[i][j]]);
+            faceNormal.push_back(faceNormalsOf[thisObj][vertexToFace[i][j] * 3]);
+            faceNormal.push_back(faceNormalsOf[thisObj][vertexToFace[i][j] * 3 + 1]);
+            faceNormal.push_back(faceNormalsOf[thisObj][vertexToFace[i][j] * 3 + 2]);
         }
 
         // compute the actual normal
@@ -275,7 +310,7 @@ void ComputeVertexNormals(int thisObj)
 }
 
 /**
- * Load a OBJ file into verticesOf[thisObj] and facesOf[thisObj].
+ * Load an OBJ file into verticesOf[thisObj] and facesOf[thisObj].
  * @param fileName The name of OBJ file to load.
  * @param thisObj The object index.
  */
@@ -388,6 +423,19 @@ void loadOBJ(const std::string& fileName, int thisObj)
     inFile.close();
 }
 
+/**
+ * Load an OBJ file and call calculation functions to process that OBJ.
+ * @param fileName The name of OBJ file to load.
+ * @param thisObj The object index.
+ */
+void loadOBJAndProcess(const std::string& fileName, int thisObj)
+{
+    loadOBJ(fileName, thisObj);
+    ComputeBoundingBox(thisObj);
+    ComputeFaceNormals(thisObj);
+    ComputeVertexNormals(thisObj);
+}
+
 // Load external textures.
 void loadTextures()
 {
@@ -420,8 +468,22 @@ void loadTextures()
 // Initialization routine.
 void setup()
 {
+    // initialize vectors
+    verticesOf.resize(MODEL_NUMBERS);
+    facesOf.resize(MODEL_NUMBERS);
+    faceCentersOf.resize(MODEL_NUMBERS);
+    faceNormalsOf.resize(MODEL_NUMBERS);
+    vertexNormalsOf.resize(MODEL_NUMBERS);
+    faceVolumesOf.resize(MODEL_NUMBERS);
+    centerOf.resize(MODEL_NUMBERS * 3);
+    diagonalLengthOf.resize(MODEL_NUMBERS);
+
     glClearColor(0.0, 0.0, 0.0, 0.0);
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+
+    // load an object model
+    loadOBJAndProcess("../models/Bunny.obj", OBJ_BUNNY);
 
     // Create texture ids.
     glGenTextures(2, texture);
@@ -437,6 +499,84 @@ void setup()
 
     // Create menu.
     makeMenu();
+}
+
+/**
+ * Draw certain model in the scene.
+ * @param thisObj The object index.
+ * @param isFlatShaded Is render style flat or smooth
+ * @param x Offset for x-axis.
+ * @param y Offset for y-axis.
+ * @param z Offset for z-axis.
+ * @param s Relative scale.
+ */
+void drawMesh(int thisObj, bool isFlatShaded, float x, float y, float z, float s)
+{
+    glPushMatrix();
+    float scale = s / diagonalLengthOf[thisObj];
+    glTranslatef(-centerOf[thisObj*3] + x, -centerOf[thisObj*3+1] + y, -centerOf[thisObj*3+2] + z);
+    glScalef(scale, scale, scale);
+
+
+    if (isFlatShaded) {
+        glShadeModel(GL_FLAT);
+        glBegin(GL_TRIANGLES);
+        for (int i = 0; i < facesOf[thisObj].size(); i += 3) {
+            glNormal3f(faceNormalsOf[thisObj][i],faceNormalsOf[thisObj][i+1],faceNormalsOf[thisObj][i+2]);
+            glVertex3f(verticesOf[thisObj][facesOf[thisObj][i]*3],
+                       verticesOf[thisObj][facesOf[thisObj][i]*3+1],
+                       verticesOf[thisObj][facesOf[thisObj][i]*3+2]);
+            glVertex3f(verticesOf[thisObj][facesOf[thisObj][i+1]*3],
+                       verticesOf[thisObj][facesOf[thisObj][i+1]*3+1],
+                       verticesOf[thisObj][facesOf[thisObj][i+1]*3+2]);
+            glVertex3f(verticesOf[thisObj][facesOf[thisObj][i+2]*3],
+                       verticesOf[thisObj][facesOf[thisObj][i+2]*3+1],
+                       verticesOf[thisObj][facesOf[thisObj][i+2]*3+2]);
+        }
+        glEnd();
+    }
+    else {
+        glShadeModel(GL_SMOOTH);
+        glBegin(GL_TRIANGLES);
+        for (int i = 0; i < facesOf[thisObj].size(); i += 3) {
+            glNormal3f(vertexNormalsOf[thisObj][facesOf[thisObj][i]*3],
+                       vertexNormalsOf[thisObj][facesOf[thisObj][i]*3+1],
+                       vertexNormalsOf[thisObj][facesOf[thisObj][i]*3+2]);
+            glVertex3f(verticesOf[thisObj][facesOf[thisObj][i]*3],
+                       verticesOf[thisObj][facesOf[thisObj][i]*3+1],
+                       verticesOf[thisObj][facesOf[thisObj][i]*3+2]);
+            glNormal3f(vertexNormalsOf[thisObj][facesOf[thisObj][i+1]*3],
+                       vertexNormalsOf[thisObj][facesOf[thisObj][i+1]*3+1],
+                       vertexNormalsOf[thisObj][facesOf[thisObj][i+1]*3+2]);
+            glVertex3f(verticesOf[thisObj][facesOf[thisObj][i+1]*3],
+                       verticesOf[thisObj][facesOf[thisObj][i+1]*3+1],
+                       verticesOf[thisObj][facesOf[thisObj][i+1]*3+2]);
+            glNormal3f(vertexNormalsOf[thisObj][facesOf[thisObj][i+2]*3],
+                       vertexNormalsOf[thisObj][facesOf[thisObj][i+2]*3+1],
+                       vertexNormalsOf[thisObj][facesOf[thisObj][i+2]*3+2]);
+            glVertex3f(verticesOf[thisObj][facesOf[thisObj][i+2]*3],
+                       verticesOf[thisObj][facesOf[thisObj][i+2]*3+1],
+                       verticesOf[thisObj][facesOf[thisObj][i+2]*3+2]);
+        }
+        glEnd();
+    }
+    glPopMatrix();
+}
+
+/**
+ * Enable OpenGL light0.
+ */
+void enableLighting()
+{
+    GLfloat light0_pos[] = {1.0,1.0,0.0,1.0};
+    GLfloat light0_diffuse[] = {1.0,1.0,1.0,1.0};
+
+    // TODO: fix lighting
+    glEnable(GL_LIGHTING);
+    glLightfv(GL_LIGHT0, GL_POSITION, light0_pos);
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
+    glEnable(GL_LIGHT0);
+    glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_TRUE);
 }
 
 // Drawing routine.
@@ -464,6 +604,10 @@ void drawScene()
     glTexCoord2f(1.0, 1.0); glVertex3f(100.0, 120.0, -70.0);
     glTexCoord2f(0.0, 1.0); glVertex3f(-100.0, 120.0, -70.0);
     glEnd();
+
+    enableLighting();
+    glPolygonMode(GL_FRONT, GL_FILL);
+    drawMesh(OBJ_BUNNY, true, 0, 0.25, 0, 10);
 
     glutSwapBuffers();
 }
@@ -495,8 +639,8 @@ void keyInput(unsigned char key, int x, int y)
 // Callback routine for non-ASCII key entry.
 void specialKeyInput(int key, int x, int y)
 {
-    if (key == GLUT_KEY_UP) d -= 0.1;
-    if (key == GLUT_KEY_DOWN) d += 0.1;
+    if (key == GLUT_KEY_UP) d -= 0.5;
+    if (key == GLUT_KEY_DOWN) d += 0.5;
     glutPostRedisplay();
 }
 
