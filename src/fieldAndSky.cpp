@@ -56,7 +56,7 @@ static float d = 0.0; // Distance parameter in gluLookAt().
 /**
  * Vectors of vertices of different objects, in this structure:
  * {x0, y0, z0, x1, y1, z1, ... , xN, yN, zN, ... }, { ... }, {...}
- * ^object1                                         ^object2 ^object3 and so on
+ * ^object1                                          ^object2 ^object3 and so on
  *
  * e.g. {x2,y2,z2} is the coordinate of point 2 (the third point), written in code like this:
  *      verticesOf[thisObj][2*3], verticesOf[thisObj][2*3 + 1], verticesOf[thisObj][2*3 + 2]
@@ -68,7 +68,7 @@ static vector<vector<float>> verticesOf;
 /**
  * Vectors of triangle-only faces of different objects, in this structure:
  * {f0v0, f0v1, f0v2, f1v0, f1v1, f1v2, ... }, { ... }, ...
- * ^object1                                   ^object2 and so on
+ * ^object1                                    ^object2 and so on
  *
  * f for face, v for vertex, each face has and only has 3 vertices
  * e.g. f1v1 is the second point of the second face. In code:
