@@ -47,6 +47,7 @@ using namespace std;
 
 // Function declaration.
 void makeMenu();
+void enableLighting();
 
 // Globals.
 static unsigned int texture[2]; // Array of texture indices.
@@ -86,7 +87,7 @@ static vector<vector<int>> facesOf;
  * {x0, y0, z0, x1, y1, z1, ... , xN, yN, zN, ... }, { ... }, ...
  * e.g. {x1,y1,z1} is the center point coordinate for face 1.
  */
-static vector<vector<float>> faceCentersOf;
+// static vector<vector<float>> faceCentersOf;
 
 /**
  * Stores the normal coordinate for each face (face normals) of different objects.
@@ -190,15 +191,14 @@ void ComputeFaceNormals(int thisObj)
         thirdPoint[2]  = verticesOf[thisObj][facesOf[thisObj][i + 2] * 3 + 2];
         // FYI:                             ^This is a vertex index^
 
-        // TODO: can be removed after test
-        // compute center point of each face
-        tempCenterX = (firstPoint[0] + secondPoint[0] + thirdPoint[0]) / 3;
-        tempCenterY = (firstPoint[1] + secondPoint[1] + thirdPoint[1]) / 3;
-        tempCenterZ = (firstPoint[2] + secondPoint[2] + thirdPoint[2]) / 3;
-
-        faceCentersOf[thisObj].push_back(tempCenterX);
-        faceCentersOf[thisObj].push_back(tempCenterY);
-        faceCentersOf[thisObj].push_back(tempCenterZ);
+//        // compute center point of each face (no longer needed here)
+//        tempCenterX = (firstPoint[0] + secondPoint[0] + thirdPoint[0]) / 3;
+//        tempCenterY = (firstPoint[1] + secondPoint[1] + thirdPoint[1]) / 3;
+//        tempCenterZ = (firstPoint[2] + secondPoint[2] + thirdPoint[2]) / 3;
+//
+//        faceCentersOf[thisObj].push_back(tempCenterX);
+//        faceCentersOf[thisObj].push_back(tempCenterY);
+//        faceCentersOf[thisObj].push_back(tempCenterZ);
 
         // calculate 2 vectors from three ordered points
         firstVector[0] = secondPoint[0] - firstPoint[0];
@@ -471,14 +471,14 @@ void setup()
     // initialize vectors
     verticesOf.resize(MODEL_NUMBERS);
     facesOf.resize(MODEL_NUMBERS);
-    faceCentersOf.resize(MODEL_NUMBERS);
+    // faceCentersOf.resize(MODEL_NUMBERS);
     faceNormalsOf.resize(MODEL_NUMBERS);
     vertexNormalsOf.resize(MODEL_NUMBERS);
     faceVolumesOf.resize(MODEL_NUMBERS);
     centerOf.resize(MODEL_NUMBERS * 3);
     diagonalLengthOf.resize(MODEL_NUMBERS);
 
-    glClearColor(0.0, 0.0, 0.0, 0.0);
+    glClearColor(1.0, 1.0, 1.0, 0.0);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
@@ -491,20 +491,21 @@ void setup()
     // Load external textures.
     loadTextures();
 
-    // Specify how texture values combine with current surface color values.
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 
     // Turn on OpenGL texturing.
     glEnable(GL_TEXTURE_2D);
 
     // Create menu.
     makeMenu();
+
+    // Enable light.
+    enableLighting();
 }
 
 /**
  * Draw certain model in the scene.
  * @param thisObj The object index.
- * @param isFlatShaded Is render style flat or smooth
+ * @param isFlatShaded Is render style flat or smooth.
  * @param x Offset for x-axis.
  * @param y Offset for y-axis.
  * @param z Offset for z-axis.
@@ -512,11 +513,24 @@ void setup()
  */
 void drawMesh(int thisObj, bool isFlatShaded, float x, float y, float z, float s)
 {
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     glPushMatrix();
+
+    glEnable(GL_NORMALIZE); // crucial operation when scaling model bigger or smaller: re-normalize all normals
+
     float scale = s / diagonalLengthOf[thisObj];
     glTranslatef(-centerOf[thisObj*3] + x, -centerOf[thisObj*3+1] + y, -centerOf[thisObj*3+2] + z);
     glScalef(scale, scale, scale);
 
+    // Material property vectors.
+    float matAmbAndDif[] = { 1.0, 0.0, 0.0, 1.0 };
+    float matSpec[] = { 1.0, 1.0, 1.0, 1.0 };
+    float matShine[] = { 50.0 };
+
+    // Material properties.
+    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, matAmbAndDif);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, matSpec);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, matShine);
 
     if (isFlatShaded) {
         glShadeModel(GL_FLAT);
@@ -568,15 +582,24 @@ void drawMesh(int thisObj, bool isFlatShaded, float x, float y, float z, float s
  */
 void enableLighting()
 {
-    GLfloat light0_pos[] = {1.0,1.0,0.0,1.0};
-    GLfloat light0_diffuse[] = {1.0,1.0,1.0,1.0};
+    // Light property vectors.
+    float lightAmb[] = { 0.0, 0.0, 0.0, 1.0 };
+    float lightDifAndSpec[] = { 1.0, 1.0, 1.0, 1.0 };
+    float lightPos[] = { 0, 5, 0, 0.0 };
+    // float globAmb[] = { 0.2, 0.2, 0.2, 1.0 };
 
-    // TODO: fix lighting
     glEnable(GL_LIGHTING);
-    glLightfv(GL_LIGHT0, GL_POSITION, light0_pos);
-    glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
+    glLightfv(GL_LIGHT0, GL_AMBIENT, lightAmb);
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, lightDifAndSpec);
+    glLightfv(GL_LIGHT0, GL_SPECULAR, lightDifAndSpec);
+    glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
     glEnable(GL_LIGHT0);
-    glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_TRUE);
+    // glLightModelfv(GL_LIGHT_MODEL_AMBIENT, globAmb); // Global ambient light.
+    glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE); // Enable two-sided lighting.
+    glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_TRUE); // Enable local viewpoint.
+    glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SEPARATE_SPECULAR_COLOR); // Enable separate specular light calculation.
+
+
 }
 
 // Drawing routine.
@@ -586,6 +609,12 @@ void drawScene()
 
     glLoadIdentity();
     gluLookAt(0.0, 10.0, 15.0 + d, 0.0, 10.0, d, 0.0, 1.0, 0.0);
+
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    drawMesh(OBJ_BUNNY, false, 0, 0.25, 0, 10);
+
+    // Specify how texture values combine with current surface color values.
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 
     // Map the grass texture onto a rectangle along the xz-plane.
     glBindTexture(GL_TEXTURE_2D, texture[0]);
@@ -605,9 +634,7 @@ void drawScene()
     glTexCoord2f(0.0, 1.0); glVertex3f(-100.0, 120.0, -70.0);
     glEnd();
 
-    enableLighting();
-    glPolygonMode(GL_FRONT, GL_FILL);
-    drawMesh(OBJ_BUNNY, true, 0, 0.25, 0, 10);
+
 
     glutSwapBuffers();
 }
