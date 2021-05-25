@@ -50,8 +50,20 @@ void makeMenu();
 void enableLighting();
 
 // Globals.
+const int windowWidth = 800, windowHeight = 800;
 static unsigned int texture[2]; // Array of texture indices.
-static float d = 0.0; // Distance parameter in gluLookAt().
+static float cameraX = 0.0f, cameraY = 10.0f, cameraZ = 15.0f; // Camera position.
+static float lookatX = 0.0f, lookatY = 10.0f, lookatZ = 0.0f; // Camera look at position.
+static float upX = 0.0f, upY = 1.0f, upZ = 0.0f; // Camera upward vector.
+static float yaw = PI, pitch = 0.0f; // Camera rotation angle.
+static bool canMoveCamera = false;
+static float sensitivity = 0.001f; // mouse sensitivity
+
+// global lighting
+static float lightAmb[] = { 0.0, 0.0, 0.0, 1.0 };
+static float lightDifAndSpec[] = { 1.0, 1.0, 1.0, 1.0 };
+static float lightPos[] = { 0, 5, 0, 0.0 }; // fourth value: 0 for spot light, 1 for directional light
+static float globAmb[] = { 0.2, 0.2, 0.2, 1.0 };
 
 // Vectors used in model processing.
 /**
@@ -488,10 +500,14 @@ void setup()
     glClearColor(1.0, 1.0, 1.0, 0.0);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
+    glEnable(GL_DEPTH_CLAMP);
 
-    // load an object model
+    // load obj models
     loadOBJAndProcess("../models/Bunny.obj", OBJ_BUNNY);
     loadOBJAndProcess("../models/Cat.obj", OBJ_CAT);
+    loadOBJAndProcess("../models/Dog.obj", OBJ_DOG);
+    loadOBJAndProcess("../models/Duck.obj", OBJ_DUCK);
+    // TODO: get tiger and it's texture coordinates
 
     // Create texture ids.
     glGenTextures(2, texture);
@@ -505,9 +521,6 @@ void setup()
 
     // Create menu.
     makeMenu();
-
-    // Enable light.
-    enableLighting();
 }
 
 /**
@@ -598,24 +611,16 @@ void drawMesh(int thisObj, bool isFlatShaded, const float* translate, float scal
  */
 void enableLighting()
 {
-    // Light property vectors.
-    float lightAmb[] = { 0.0, 0.0, 0.0, 1.0 };
-    float lightDifAndSpec[] = { 1.0, 1.0, 1.0, 1.0 };
-    float lightPos[] = { 0, 5, 0, 0.0 };
-    // float globAmb[] = { 0.2, 0.2, 0.2, 1.0 };
-
     glEnable(GL_LIGHTING);
     glLightfv(GL_LIGHT0, GL_AMBIENT, lightAmb);
     glLightfv(GL_LIGHT0, GL_DIFFUSE, lightDifAndSpec);
     glLightfv(GL_LIGHT0, GL_SPECULAR, lightDifAndSpec);
     glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
     glEnable(GL_LIGHT0);
-    // glLightModelfv(GL_LIGHT_MODEL_AMBIENT, globAmb); // Global ambient light.
+    glLightModelfv(GL_LIGHT_MODEL_AMBIENT, globAmb); // Global ambient light.
     glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE); // Enable two-sided lighting.
     glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_TRUE); // Enable local viewpoint.
     glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SEPARATE_SPECULAR_COLOR); // Enable separate specular light calculation.
-
-
 }
 
 // Drawing routine.
@@ -623,21 +628,38 @@ void drawScene()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    gluLookAt(0.0, 10.0, 15.0 + d, 0.0, 10.0, d, 0.0, 1.0, 0.0);
+    // TODO: fix "lighting follows camera" problem
+    // Enable light.
+    enableLighting();
+
+    gluLookAt(cameraX, cameraY, cameraZ,
+              lookatX, lookatY, lookatZ, upX, upY, upZ);
+
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     // transforms on object
-    float translateBunny[] = {0.0, 5.0, 0.0};
+    float translateBunny[] = {0.0, 3.0, 0.0};
     float rotateBunny[] = {0.0, 0.0, 0.0};
     float colorBunny[] = {1.0, 0.0, 1.0};
     drawMesh(OBJ_BUNNY, false, translateBunny, 10, rotateBunny, colorBunny);
 
     float translateCat[] = {5.0, 5.0, 0.0};
-    float rotateCat[] = {-90.0, 0.0, 0.0};
+    float rotateCat[] = {-90.0, 0.0, 60.0};
     float colorCat[] = {1.0, 0.0, 0.0};
     drawMesh(OBJ_CAT, true, translateCat, 10, rotateCat, colorCat);
+
+    float translateDog[] = {-6.0, 5.0, 0.0};
+    float rotateDog[] = {-90.0, 0.0, 30.0};
+    float colorDog[] = {0.0, 1.0, 0.0};
+    drawMesh(OBJ_DOG, true, translateDog, 10, rotateDog, colorDog);
+
+    float translateDuck[] = {0.0, 3.0, 6.0};
+    float rotateDuck[] = {-90.0, 0.0, 0.0};
+    float colorDuck[] = {1.0, 1.0, 0.0};
+    drawMesh(OBJ_DUCK, false, translateDuck, 10, rotateDuck, colorDuck);
 
     // Specify how texture values combine with current surface color values.
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
@@ -660,9 +682,52 @@ void drawScene()
     glTexCoord2f(0.0, 1.0); glVertex3f(-100.0, 120.0, -70.0);
     glEnd();
 
-
-
     glutSwapBuffers();
+}
+
+// Used for checking whether the mouse button is pressed.
+void checkMouse(int button, int state, int x, int y) {
+    if (button == GLUT_LEFT_BUTTON) {
+        if (state == GLUT_DOWN) {
+            if (!canMoveCamera) {
+                canMoveCamera = true;
+                glutSetCursor(GLUT_CURSOR_NONE); // hide cursor
+                glutWarpPointer(windowWidth / 2, windowHeight / 2);
+            }
+            else {
+                canMoveCamera = false;
+                glutSetCursor(GLUT_CURSOR_INHERIT);
+            }
+        }
+    }
+}
+
+// Rotate camera when mouse is pressed and moving.
+void moveCamera(int x, int y) {
+    int centerX = windowWidth/2, centerY = windowHeight/2;
+    if (canMoveCamera) {
+        float deltaX = (float)(x - centerX) * sensitivity;
+        float deltaY = (float)(y - centerY) * sensitivity;
+        yaw += deltaX;
+        pitch += deltaY;
+
+        if (pitch > PI/2 - 0.01) pitch = PI/2 - 0.01;
+        if (pitch < -PI/2 + 0.01) pitch = -PI/2 + 0.01; // limit on pitch angle
+
+        // change look-at coordinate
+        lookatX = cameraX + 15.0f * sin(yaw) * cos(pitch);
+        lookatZ = cameraZ + 15.0f * cos(yaw) * cos(pitch);
+        lookatY = cameraY + 15.0f * sin(pitch);
+
+        // change upward vector
+//        upY = sin(pitch);
+//        upX = -sin(yaw) * cos(pitch);
+//        upZ = -cos(yaw) * cos(pitch);
+
+
+        glutWarpPointer(centerX, centerY); // lock mouse in the center
+        glutPostRedisplay(); // update canvas
+    }
 }
 
 // OpenGL window reshape routine.
@@ -679,10 +744,39 @@ void resize(int w, int h)
 // Keyboard input processing routine.
 void keyInput(unsigned char key, int x, int y)
 {
+    float forwardX = 0.5f * sin(yaw) * cos(pitch);
+    float forwardY = 0.5f * sin(pitch);
+    float forwardZ = 0.5f * cos(yaw) * cos(pitch);
+
+    float rightX = -0.5f * cos(yaw);
+    float rightZ = 0.5f * sin(yaw);
+
     switch (key)
     {
         case 27:
             exit(0);
+            break;
+        case 'w':
+        case 'W':
+            cameraX += forwardX; lookatX += forwardX;
+            cameraY += forwardY; lookatY += forwardY;
+            cameraZ += forwardZ; lookatZ += forwardZ;
+            break;
+        case 'a':
+        case 'A':
+            cameraX -= rightX; lookatX -= rightX;
+            cameraZ -= rightZ; lookatZ -= rightZ;
+            break;
+        case 's':
+        case 'S':
+            cameraX -= forwardX; lookatX -= forwardX;
+            cameraY -= forwardY; lookatY -= forwardY;
+            cameraZ -= forwardZ; lookatZ -= forwardZ;
+            break;
+        case 'd':
+        case 'D':
+            cameraX += rightX; lookatX += rightX;
+            cameraZ += rightZ; lookatZ += rightZ;
             break;
         default:
             break;
@@ -692,8 +786,14 @@ void keyInput(unsigned char key, int x, int y)
 // Callback routine for non-ASCII key entry.
 void specialKeyInput(int key, int x, int y)
 {
-    if (key == GLUT_KEY_UP) d -= 0.5;
-    if (key == GLUT_KEY_DOWN) d += 0.5;
+    if (key == GLUT_KEY_UP) {
+        cameraZ -= 0.5;
+        lookatZ -= 0.5;
+    }
+    if (key == GLUT_KEY_DOWN) {
+        cameraZ += 0.5;
+        lookatZ += 0.5;
+    }
     glutPostRedisplay();
 }
 
@@ -763,13 +863,15 @@ int main(int argc, char **argv)
     glutInitContextProfile(GLUT_COMPATIBILITY_PROFILE);
 
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
-    glutInitWindowSize(500, 500);
+    glutInitWindowSize(800, 800);
     glutInitWindowPosition(100, 100);
     glutCreateWindow("fieldAndSky.cpp");
     glutDisplayFunc(drawScene);
     glutReshapeFunc(resize);
     glutKeyboardFunc(keyInput);
     glutSpecialFunc(specialKeyInput);
+    glutMouseFunc(checkMouse);
+    glutPassiveMotionFunc(moveCamera);
 
     glewExperimental = GL_TRUE;
     glewInit();
