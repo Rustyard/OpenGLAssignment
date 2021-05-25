@@ -138,7 +138,7 @@ void ComputeBoundingBox(int thisObj)
 {
     float minX,maxX, minY,maxY, minZ,maxZ;
     // read value from vertices vector
-    for (int i = 0; i < verticesOf[thisObj].size() / 3; i += 3)
+    for (int i = 0; i < verticesOf[thisObj].size(); i += 3) // massive bug fix in this "for"!
     {
         if (i == 0) {
             minX = maxX = verticesOf[thisObj][i];
@@ -159,6 +159,13 @@ void ComputeBoundingBox(int thisObj)
     centerOf[thisObj * 3 + 2] = (minZ + maxZ) / 2;
 
     diagonalLengthOf[thisObj] = (float)sqrt(pow(maxX - minX, 2.0) + pow(maxY - minY, 2.0) + pow(maxZ - minZ, 2.0));
+
+    // center all the vertices
+    for (int i = 0; i < verticesOf[thisObj].size(); i += 3) {
+        verticesOf[thisObj][i]   -= centerOf[thisObj*3];
+        verticesOf[thisObj][i+1] -= centerOf[thisObj*3 + 1];
+        verticesOf[thisObj][i+2] -= centerOf[thisObj*3 + 2];
+    }
 }
 
 /**
@@ -484,6 +491,7 @@ void setup()
 
     // load an object model
     loadOBJAndProcess("../models/Bunny.obj", OBJ_BUNNY);
+    loadOBJAndProcess("../models/Cat.obj", OBJ_CAT);
 
     // Create texture ids.
     glGenTextures(2, texture);
@@ -511,19 +519,25 @@ void setup()
  * @param z Offset for z-axis.
  * @param s Relative scale.
  */
-void drawMesh(int thisObj, bool isFlatShaded, float x, float y, float z, float s)
+void drawMesh(int thisObj, bool isFlatShaded, const float* translate, float scaleAll, float* angleRotate, float* color)
 {
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     glPushMatrix();
 
-    glEnable(GL_NORMALIZE); // crucial operation when scaling model bigger or smaller: re-normalize all normals
+    glEnable(GL_NORMALIZE); // crucial operation when scaling model: re-normalize all normals
 
-    float scale = s / diagonalLengthOf[thisObj];
-    glTranslatef(-centerOf[thisObj*3] + x, -centerOf[thisObj*3+1] + y, -centerOf[thisObj*3+2] + z);
-    glScalef(scale, scale, scale);
+    float s = scaleAll / diagonalLengthOf[thisObj];
+
+    glScalef(s, s, s);
+    glTranslatef(translate[0]/s, translate[1]/s, translate[2]/s); // move
+    // rotate
+    glRotatef(angleRotate[0], 1.0, 0.0, 0.0);
+    glRotatef(angleRotate[1], 0.0, 1.0, 0.0);
+    glRotatef(angleRotate[2], 0.0, 0.0, 1.0);
+
 
     // Material property vectors.
-    float matAmbAndDif[] = { 1.0, 0.0, 0.0, 1.0 };
+    float matAmbAndDif[] = { color[0], color[1], color[2], 1.0 };
     float matSpec[] = { 1.0, 1.0, 1.0, 1.0 };
     float matShine[] = { 50.0 };
 
@@ -574,6 +588,8 @@ void drawMesh(int thisObj, bool isFlatShaded, float x, float y, float z, float s
         }
         glEnd();
     }
+
+
     glPopMatrix();
 }
 
@@ -611,7 +627,17 @@ void drawScene()
     gluLookAt(0.0, 10.0, 15.0 + d, 0.0, 10.0, d, 0.0, 1.0, 0.0);
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    drawMesh(OBJ_BUNNY, false, 0, 0.25, 0, 10);
+
+    // transforms on object
+    float translateBunny[] = {0.0, 5.0, 0.0};
+    float rotateBunny[] = {0.0, 0.0, 0.0};
+    float colorBunny[] = {1.0, 0.0, 1.0};
+    drawMesh(OBJ_BUNNY, false, translateBunny, 10, rotateBunny, colorBunny);
+
+    float translateCat[] = {5.0, 5.0, 0.0};
+    float rotateCat[] = {-90.0, 0.0, 0.0};
+    float colorCat[] = {1.0, 0.0, 0.0};
+    drawMesh(OBJ_CAT, true, translateCat, 10, rotateCat, colorCat);
 
     // Specify how texture values combine with current surface color values.
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);

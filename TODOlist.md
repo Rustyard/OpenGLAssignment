@@ -7,7 +7,7 @@
    2. [ ] Test it 
 3. [ ] Camera movement
 4. [ ] Model movement
-5. [ ] Get lighting work
+5. [x] Get lighting work
 
 ## Quest book
 
