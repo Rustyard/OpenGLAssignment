@@ -642,7 +642,7 @@ void drawScene()
 
     glMatrixMode(GL_PROJECTION); // for setting perspective
     glLoadIdentity();
-    // TODO: fix "lighting follows camera" problem
+
     // Enable light.
     enableLighting();
 
@@ -818,7 +818,6 @@ void specialKeyInput(int key, int x, int y)
 }
 
 // light adjustment menu
-// TODO: make this functioning
 void lightMenu(int id)
 {
     switch (id) {
