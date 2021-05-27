@@ -29,7 +29,7 @@
 #define ID_LIGHT_TURN_GREEN 3
 #define ID_LIGHT_TURN_BLUE 4
 #define ID_LIGHT_TURN_WHITE 5
-#define ID_LIGHT_TURN_GREY 6
+#define ID_LIGHT_TURN_DIM 6
 #define ID_QUIT 7
 
 #define MODEL_NUMBERS 5
@@ -50,7 +50,7 @@ void makeMenu();
 void enableLighting();
 
 // Globals.
-const int windowWidth = 800, windowHeight = 800;
+static int windowWidth = 800, windowHeight = 800;
 static unsigned int texture[2]; // Array of texture indices.
 static float cameraX = 0.0f, cameraY = 10.0f, cameraZ = 15.0f; // Camera position.
 static float lookatX = 0.0f, lookatY = 10.0f, lookatZ = 0.0f; // Camera look at position.
@@ -58,11 +58,14 @@ static float upX = 0.0f, upY = 1.0f, upZ = 0.0f; // Camera upward vector.
 static float yaw = PI, pitch = 0.0f; // Camera rotation angle.
 static bool canMoveCamera = false;
 static float sensitivity = 0.001f; // mouse sensitivity
+static bool enableLight = true;
+static float moveSpeed = 0.5f;
+static float fov = 70.0f;
 
 // global lighting
 static float lightAmb[] = { 0.0, 0.0, 0.0, 1.0 };
 static float lightDifAndSpec[] = { 1.0, 1.0, 1.0, 1.0 };
-static float lightPos[] = { 0, 5, 0, 0.0 }; // fourth value: 0 for spot light, 1 for directional light
+static float lightPos[] = { 20, 20, 20, 1.0 }; // fourth value: 0 for spot light, 1 for directional light
 static float globAmb[] = { 0.2, 0.2, 0.2, 1.0 };
 
 // Vectors used in model processing.
@@ -611,11 +614,20 @@ void drawMesh(int thisObj, bool isFlatShaded, const float* translate, float scal
  */
 void enableLighting()
 {
+    float lightDark[] = { 0.0, 0.0, 0.0, 0.0 };
     glEnable(GL_LIGHTING);
-    glLightfv(GL_LIGHT0, GL_AMBIENT, lightAmb);
-    glLightfv(GL_LIGHT0, GL_DIFFUSE, lightDifAndSpec);
-    glLightfv(GL_LIGHT0, GL_SPECULAR, lightDifAndSpec);
-    glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
+    if (enableLight) {
+        glLightfv(GL_LIGHT0, GL_AMBIENT, lightAmb);
+        glLightfv(GL_LIGHT0, GL_DIFFUSE, lightDifAndSpec);
+        glLightfv(GL_LIGHT0, GL_SPECULAR, lightDifAndSpec);
+        glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
+    }
+    else {
+        glLightfv(GL_LIGHT0, GL_AMBIENT, lightDark);
+        glLightfv(GL_LIGHT0, GL_DIFFUSE, lightDark);
+        glLightfv(GL_LIGHT0, GL_SPECULAR, lightDark);
+        glLightfv(GL_LIGHT0, GL_POSITION, lightDark);
+    }
     glEnable(GL_LIGHT0);
     glLightModelfv(GL_LIGHT_MODEL_AMBIENT, globAmb); // Global ambient light.
     glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE); // Enable two-sided lighting.
@@ -628,15 +640,18 @@ void drawScene()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glMatrixMode(GL_MODELVIEW);
+    glMatrixMode(GL_PROJECTION); // for setting perspective
     glLoadIdentity();
     // TODO: fix "lighting follows camera" problem
     // Enable light.
     enableLighting();
 
+    gluPerspective(fov, (float)windowWidth/windowHeight, 0.01, 500);
+
     gluLookAt(cameraX, cameraY, cameraZ,
               lookatX, lookatY, lookatZ, upX, upY, upZ);
 
+    glMatrixMode(GL_MODELVIEW); // switch back to modelview for usual matrix operations
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
@@ -662,7 +677,7 @@ void drawScene()
     drawMesh(OBJ_DUCK, false, translateDuck, 10, rotateDuck, colorDuck);
 
     // Specify how texture values combine with current surface color values.
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
     // Map the grass texture onto a rectangle along the xz-plane.
     glBindTexture(GL_TEXTURE_2D, texture[0]);
@@ -673,6 +688,7 @@ void drawScene()
     glTexCoord2f(0.0, 8.0); glVertex3f(-100.0, 0.0, -100.0);
     glEnd();
 
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
     // Map the sky texture onto a rectangle parallel to the xy-plane.
     glBindTexture(GL_TEXTURE_2D, texture[1]);
     glBegin(GL_POLYGON);
@@ -733,6 +749,10 @@ void moveCamera(int x, int y) {
 // OpenGL window reshape routine.
 void resize(int w, int h)
 {
+    // update window size
+    windowWidth = glutGet(GLUT_WINDOW_WIDTH);
+    windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
+
     glViewport(0, 0, w, h);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -744,12 +764,12 @@ void resize(int w, int h)
 // Keyboard input processing routine.
 void keyInput(unsigned char key, int x, int y)
 {
-    float forwardX = 0.5f * sin(yaw) * cos(pitch);
-    float forwardY = 0.5f * sin(pitch);
-    float forwardZ = 0.5f * cos(yaw) * cos(pitch);
+    float forwardX = moveSpeed * sin(yaw) * cos(pitch);
+    float forwardY = moveSpeed * sin(pitch);
+    float forwardZ = moveSpeed * cos(yaw) * cos(pitch);
 
-    float rightX = -0.5f * cos(yaw);
-    float rightZ = 0.5f * sin(yaw);
+    float rightX = -moveSpeed * cos(yaw);
+    float rightZ = moveSpeed * sin(yaw);
 
     switch (key)
     {
@@ -803,18 +823,45 @@ void lightMenu(int id)
 {
     switch (id) {
         case ID_LIGHT_ON:
+            enableLight = true;
             break;
         case ID_LIGHT_OFF:
+            enableLight = false;
             break;
         case ID_LIGHT_TURN_WHITE:
+            enableLight = true;
+            lightDifAndSpec[0] = 1.0;
+            lightDifAndSpec[1] = 1.0;
+            lightDifAndSpec[2] = 1.0;
+            lightDifAndSpec[3] = 1.0;
             break;
-        case ID_LIGHT_TURN_GREY:
+        case ID_LIGHT_TURN_DIM:
+            enableLight = true;
+            lightDifAndSpec[0] = 0.5;
+            lightDifAndSpec[1] = 0.5;
+            lightDifAndSpec[2] = 0.5;
+            lightDifAndSpec[3] = 0.5;
             break;
         case ID_LIGHT_TURN_RED:
+            enableLight = true;
+            lightDifAndSpec[0] = 1.0;
+            lightDifAndSpec[1] = 0.0;
+            lightDifAndSpec[2] = 0.0;
+            lightDifAndSpec[3] = 1.0;
             break;
         case ID_LIGHT_TURN_GREEN:
+            enableLight = true;
+            lightDifAndSpec[0] = 0.0;
+            lightDifAndSpec[1] = 1.0;
+            lightDifAndSpec[2] = 0.0;
+            lightDifAndSpec[3] = 1.0;
             break;
         case ID_LIGHT_TURN_BLUE:
+            enableLight = true;
+            lightDifAndSpec[0] = 0.0;
+            lightDifAndSpec[1] = 0.0;
+            lightDifAndSpec[2] = 1.0;
+            lightDifAndSpec[3] = 1.0;
             break;
         default:
             break;
@@ -835,7 +882,7 @@ void makeMenu()
     glutAddMenuEntry("Turn light on", ID_LIGHT_ON);
     glutAddMenuEntry("Turn light off", ID_LIGHT_OFF);
     glutAddMenuEntry("Turn light color to white", ID_LIGHT_TURN_WHITE);
-    glutAddMenuEntry("Turn light color to gray", ID_LIGHT_TURN_GREY);
+    glutAddMenuEntry("Make light a bit dark", ID_LIGHT_TURN_DIM);
     glutAddMenuEntry("Turn light color to red", ID_LIGHT_TURN_RED);
     glutAddMenuEntry("Turn light color to green", ID_LIGHT_TURN_GREEN);
     glutAddMenuEntry("Turn light color to blue", ID_LIGHT_TURN_BLUE);

@@ -2,16 +2,20 @@
 
 1. [x] Model import
    1. [x] Improve normal calculate algorithm
+   2. [ ] Import the tiger model with texture
 2. [x] Right click menu
-   1. [ ] Make the menu actually functioning  
-   2. [ ] Test it 
+   1. [x] Make the menu actually functioning  
+   2. [x] Test it 
 3. [x] Camera movement  
-   1. [ ] Fix camera upward vector
-   2. [ ] Light is somehow slightly changed be camera angle
+   1. [x] Fix camera upward vector  
+      no need to fix
+   2. [x] Light is somehow slightly changed be camera angle  
+      somehow fixed this
 4. [ ] Model movement
 5. [x] Get lighting work  
-6. [ ] Solve camera clipping (not urgent)
+6. [x] Solve camera clipping (not urgent)
 7. [ ] Add a skybox
+8. [x] Window properly resizable
 
 ## Quest book
 
