@@ -9,12 +9,12 @@
 3. [x] Camera movement  
    1. [x] Fix camera upward vector  
       no need to fix
-   2. [x] Light is somehow slightly changed be camera angle  
+   2. [x] Light is somehow moving with camera  
       somehow fixed this
 4. [ ] Model movement
 5. [x] Get lighting work  
 6. [x] Solve camera clipping (not urgent)
-7. [ ] Add a skybox
+7. [x] Add a skybox
 8. [x] Window properly resizable
 
 ## Quest book

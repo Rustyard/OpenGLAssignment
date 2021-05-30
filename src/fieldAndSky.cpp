@@ -52,6 +52,7 @@ void enableLighting();
 // Globals.
 static int windowWidth = 800, windowHeight = 800;
 static unsigned int texture[2]; // Array of texture indices.
+static unsigned int textureCube; // Skybox.
 static float cameraX = 0.0f, cameraY = 10.0f, cameraZ = 15.0f; // Camera position.
 static float lookatX = 0.0f, lookatY = 10.0f, lookatZ = 0.0f; // Camera look at position.
 static float upX = 0.0f, upY = 1.0f, upZ = 0.0f; // Camera upward vector.
@@ -59,13 +60,13 @@ static float yaw = PI, pitch = 0.0f; // Camera rotation angle.
 static bool canMoveCamera = false;
 static float sensitivity = 0.001f; // mouse sensitivity
 static bool enableLight = true;
-static float moveSpeed = 0.5f;
+static float moveSpeed = 5.0f;
 static float fov = 70.0f;
 
 // global lighting
 static float lightAmb[] = { 0.0, 0.0, 0.0, 1.0 };
 static float lightDifAndSpec[] = { 1.0, 1.0, 1.0, 1.0 };
-static float lightPos[] = { 20, 20, 20, 1.0 }; // fourth value: 0 for spot light, 1 for directional light
+static float lightPos[] = { -20, 20, 20, 1.0 }; // fourth value: 0 for spot light, 1 for directional light
 static float globAmb[] = { 0.2, 0.2, 0.2, 1.0 };
 
 // Vectors used in model processing.
@@ -196,7 +197,7 @@ void ComputeFaceNormals(int thisObj)
     float firstVector[3] = { 0.0,0.0,0.0 };
     float secondVector[3] = { 0.0,0.0,0.0 };
 
-    float tempCenterX, tempCenterY, tempCenterZ;
+    // float tempCenterX, tempCenterY, tempCenterZ;
     float tempNormalX, tempNormalY, tempNormalZ;
 
     for (int i = 0; i < facesOf[thisObj].size(); i += 3)
@@ -485,6 +486,31 @@ void loadTextures()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    // load skybox texture, code from skybox.cpp
+    // Local storage for bmp image data.
+    imageFile *imageCube[6];
+
+    // Load the six cube map images.
+    imageCube[0] = getBMP("../textures/IceRiver/posx.bmp");
+    imageCube[1] = getBMP("../textures/IceRiver/negx.bmp");
+    imageCube[2] = getBMP("../textures/IceRiver/posy.bmp");
+    imageCube[3] = getBMP("../textures/IceRiver/negy.bmp");
+    imageCube[4] = getBMP("../textures/IceRiver/posz.bmp");
+    imageCube[5] = getBMP("../textures/IceRiver/negz.bmp");
+
+    // Bind the cube map texture and define its 6 component textures.
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureCube);
+    for (int face = 0; face < 6; face++)
+    {
+        int target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
+        glTexImage2D(target, 0, GL_RGBA, imageCube[0]->width, imageCube[0]->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageCube[face]->data);
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 }
 
 // Initialization routine.
@@ -514,6 +540,7 @@ void setup()
 
     // Create texture ids.
     glGenTextures(2, texture);
+    glGenTextures(1, &textureCube);
 
     // Load external textures.
     loadTextures();
@@ -610,6 +637,45 @@ void drawMesh(int thisObj, bool isFlatShaded, const float* translate, float scal
 }
 
 /**
+ * Draw a skybox (actually a plane).
+ */
+void drawSkybox() {
+    glEnable(GL_TEXTURE_CUBE_MAP);
+
+    // rotate the texture with view angle
+    glMatrixMode(GL_TEXTURE);
+    glLoadIdentity();
+    glRotatef(-yaw/PI*180 + 180, 0.0, 1.0, 0.0);
+    glRotatef(pitch/PI*180, 1.0, 0.0, 0.0);
+
+    // Disable depth buffer.
+    glDepthMask(GL_FALSE);
+
+    // Draw a square textured with cubemap after reversing POV rotations.
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glTranslatef(lookatX, lookatY, lookatZ);
+    glRotatef(yaw/PI*180 + 180, 0.0, 1.0, 0.0);
+    glRotatef(pitch/PI*180, 1.0, 0.0, 0.0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureCube);
+    glBegin(GL_POLYGON);
+    glTexCoord3f(-1.0, 1.0, 1.0); glVertex3f(-500.0, -500.0, -500.0);
+    glTexCoord3f(1.0, 1.0, 1.0); glVertex3f(500.0, -500.0, -500.0);
+    glTexCoord3f(1.0, -1.0, 1.0); glVertex3f(500.0, 500.0, -500.0);
+    glTexCoord3f(-1.0, -1.0, 1.0); glVertex3f(-500.0, 500.0, -500.0);
+    glEnd();
+    glPopMatrix();
+
+    // Enable depth buffer.
+    glDepthMask(GL_TRUE);
+    glDisable(GL_TEXTURE_CUBE_MAP);
+
+    // clear texture rotation
+    glMatrixMode(GL_TEXTURE);
+    glLoadIdentity();
+}
+
+/**
  * Enable OpenGL light0.
  */
 void enableLighting()
@@ -640,13 +706,16 @@ void drawScene()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+    drawSkybox();
+
     glMatrixMode(GL_PROJECTION); // for setting perspective
     glLoadIdentity();
 
     // Enable light.
     enableLighting();
 
-    gluPerspective(fov, (float)windowWidth/windowHeight, 0.01, 500);
+    gluPerspective(fov, (float)windowWidth/(float)windowHeight, 0.01, 5000);
 
     gluLookAt(cameraX, cameraY, cameraZ,
               lookatX, lookatY, lookatZ, upX, upY, upZ);
@@ -688,15 +757,15 @@ void drawScene()
     glTexCoord2f(0.0, 8.0); glVertex3f(-100.0, 0.0, -100.0);
     glEnd();
 
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-    // Map the sky texture onto a rectangle parallel to the xy-plane.
-    glBindTexture(GL_TEXTURE_2D, texture[1]);
-    glBegin(GL_POLYGON);
-    glTexCoord2f(0.0, 0.0); glVertex3f(-100.0, 0.0, -70.0);
-    glTexCoord2f(1.0, 0.0); glVertex3f(100.0, 0.0, -70.0);
-    glTexCoord2f(1.0, 1.0); glVertex3f(100.0, 120.0, -70.0);
-    glTexCoord2f(0.0, 1.0); glVertex3f(-100.0, 120.0, -70.0);
-    glEnd();
+
+//    // Map the sky texture onto a rectangle parallel to the xy-plane.
+//    glBindTexture(GL_TEXTURE_2D, texture[1]);
+//    glBegin(GL_POLYGON);
+//    glTexCoord2f(0.0, 0.0); glVertex3f(-100.0, 0.0, -70.0);
+//    glTexCoord2f(1.0, 0.0); glVertex3f(100.0, 0.0, -70.0);
+//    glTexCoord2f(1.0, 1.0); glVertex3f(100.0, 120.0, -70.0);
+//    glTexCoord2f(0.0, 1.0); glVertex3f(-100.0, 120.0, -70.0);
+//    glEnd();
 
     glutSwapBuffers();
 }
