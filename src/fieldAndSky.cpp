@@ -61,12 +61,26 @@ static float sensitivity = 0.001f; // mouse sensitivity
 static bool enableLight = true;
 static float moveSpeed = 1.0f;
 static float fov = 70.0f;
+static int controlModel = 0; // showing which model is in control
 
 // global lighting
 static float lightAmb[] = { 0.0, 0.0, 0.0, 1.0 };
 static float lightDifAndSpec[] = { 1.0, 1.0, 1.0, 1.0 };
 static float lightPos[] = { -20, 20, 20, 0.0 }; // fourth value: 0 for spot light, 1 for directional light
 static float globAmb[] = { 0.2, 0.2, 0.2, 1.0 };
+
+// model control
+static float tBunny[] = {0.0, 0.0, 0.0};
+static float tCat[] = {0.0, 0.0, 0.0};
+static float tDog[] = {0.0, 0.0, 0.0};
+static float tDuck[] = {0.0, 0.0, 0.0};
+static float tTiger[] = {0.0, 0.0, 0.0};
+
+static float rBunny[] = {0.0, 0.0, 0.0};
+static float rCat[] = {0.0, 0.0, 0.0};
+static float rDog[] = {0.0, 0.0, 0.0};
+static float rDuck[] = {0.0, 0.0, 0.0};
+static float rTiger[] = {0.0, 0.0, 0.0};
 
 // Vectors used in model processing.
 /**
@@ -698,10 +712,11 @@ void drawSkybox() {
     glRotatef(pitch/PI*180, 1.0, 0.0, 0.0);
     glBindTexture(GL_TEXTURE_CUBE_MAP, textureCube);
     glBegin(GL_POLYGON);
-    glTexCoord3f(-1.0, 1.0, 1.0); glVertex3f(-500.0, -500.0, -500.0);
-    glTexCoord3f(1.0, 1.0, 1.0); glVertex3f(500.0, -500.0, -500.0);
-    glTexCoord3f(1.0, -1.0, 1.0); glVertex3f(500.0, 500.0, -500.0);
-    glTexCoord3f(-1.0, -1.0, 1.0); glVertex3f(-500.0, 500.0, -500.0);
+    // support 2:1 widescreen
+    glTexCoord3f(-2.0, 1.0, 1.0); glVertex3f(-1000.0, -500.0, -500.0);
+    glTexCoord3f(2.0, 1.0, 1.0); glVertex3f(1000.0, -500.0, -500.0);
+    glTexCoord3f(2.0, -1.0, 1.0); glVertex3f(1000.0, 500.0, -500.0);
+    glTexCoord3f(-2.0, -1.0, 1.0); glVertex3f(-1000.0, 500.0, -500.0);
     glEnd();
     glPopMatrix();
 
@@ -764,28 +779,28 @@ void drawScene()
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     // transforms on object
-    float translateBunny[] = {0.0, 3.0, 0.0};
-    float rotateBunny[] = {0.0, 0.0, 0.0};
+    float translateBunny[] = {0.0f+tBunny[0], 3.0f+tBunny[1], 0.0f+tBunny[2]};
+    float rotateBunny[] = {0.0f+rBunny[0], 0.0f+rBunny[1], 0.0f+rBunny[2]};
     float colorBunny[] = {1.0, 0.0, 1.0};
     drawMesh(OBJ_BUNNY, false, translateBunny, 10, rotateBunny, colorBunny);
 
-    float translateCat[] = {5.0, 5.0, 0.0};
-    float rotateCat[] = {-90.0, 0.0, 60.0};
+    float translateCat[] = {5.0f+tCat[0], 5.0f+tCat[1], 0.0f+tCat[2]};
+    float rotateCat[] = {-90.0f+rCat[0], 0.0f+rCat[1], 60.0f+rCat[2]};
     float colorCat[] = {1.0, 0.0, 0.0};
     drawMesh(OBJ_CAT, true, translateCat, 10, rotateCat, colorCat);
 
-    float translateDog[] = {-6.0, 5.0, 0.0};
-    float rotateDog[] = {-90.0, 0.0, 30.0};
+    float translateDog[] = {-6.0f+tDog[0], 5.0f+tDog[1], 0.0f+tDog[2]};
+    float rotateDog[] = {-90.0f+rDog[0], 0.0f+rDog[1], 30.0f+rDog[2]};
     float colorDog[] = {0.0, 1.0, 0.0};
     drawMesh(OBJ_DOG, true, translateDog, 10, rotateDog, colorDog);
 
-    float translateDuck[] = {0.0, 3.0, 6.0};
-    float rotateDuck[] = {-90.0, 0.0, 0.0};
+    float translateDuck[] = {0.0f+tDuck[0], 3.0f+tDuck[1], 6.0f+tDuck[2]};
+    float rotateDuck[] = {-90.0f+rDuck[0], 0.0f+rDuck[1], 0.0f+rDuck[2]};
     float colorDuck[] = {1.0, 1.0, 0.0};
     drawMesh(OBJ_DUCK, false, translateDuck, 10, rotateDuck, colorDuck);
 
-    float translateTiger[] = {-5.0, 5.0, -10.0};
-    float rotateTiger[] = {-90.0, 0.0, 115.0};
+    float translateTiger[] = {-5.0f+tTiger[0], 5.0f+tTiger[1], -10.0f+tTiger[2]};
+    float rotateTiger[] = {-90.0f+rTiger[0], 0.0f+rTiger[1], 115.0f+rTiger[2]};
     float colorTiger[] = {1.0, 1.0, 1.0};
     glBindTexture(GL_TEXTURE_2D, textureTiger);
     drawMesh(OBJ_TIGER, false, translateTiger, 20, rotateTiger, colorTiger);
@@ -801,16 +816,6 @@ void drawScene()
     glTexCoord2f(8.0, 8.0); glVertex3f(100.0, 0.0, -100.0);
     glTexCoord2f(0.0, 8.0); glVertex3f(-100.0, 0.0, -100.0);
     glEnd();
-
-
-//    // Map the sky texture onto a rectangle parallel to the xy-plane.
-//    glBindTexture(GL_TEXTURE_2D, texture[1]);
-//    glBegin(GL_POLYGON);
-//    glTexCoord2f(0.0, 0.0); glVertex3f(-100.0, 0.0, -70.0);
-//    glTexCoord2f(1.0, 0.0); glVertex3f(100.0, 0.0, -70.0);
-//    glTexCoord2f(1.0, 1.0); glVertex3f(100.0, 120.0, -70.0);
-//    glTexCoord2f(0.0, 1.0); glVertex3f(-100.0, 120.0, -70.0);
-//    glEnd();
 
     glutSwapBuffers();
 }
@@ -919,9 +924,91 @@ void keyInput(unsigned char key, int x, int y)
         case 'C':
             cameraY -= moveSpeed; lookatY -= moveSpeed;
             break;
+        case '1':
+            controlModel = 0; cout << "Now controlling: bunny." << endl;
+            break;
+        case '2':
+            controlModel = 1; cout << "Now controlling: cat." << endl;
+            break;
+        case '3':
+            controlModel = 2; cout << "Now controlling: dog." << endl;
+            break;
+        case '4':
+            controlModel = 3; cout << "Now controlling: duck." << endl;
+            break;
+        case '5':
+            controlModel = 4; cout << "Now controlling: tiger." << endl;
+            break;
+        case 'j':
+            switch (controlModel) {
+                case 0: tBunny[0] += 1.0f; break;
+                case 1: tCat[0] += 1.0f; break;
+                case 2: tDog[0] += 1.0f; break;
+                case 3: tDuck[0] += 1.0f; break;
+                case 4: tTiger[0] += 1.0f; break;
+                default:
+                    break;
+            }
+            break;
+        case 'J':
+            switch (controlModel) {
+                case 0: tBunny[0] -= 1.0f; break;
+                case 1: tCat[0] -= 1.0f; break;
+                case 2: tDog[0] -= 1.0f; break;
+                case 3: tDuck[0] -= 1.0f; break;
+                case 4: tTiger[0] -= 1.0f; break;
+                default:
+                    break;
+            }
+            break;
+        case 'k':
+            switch (controlModel) {
+                case 0: tBunny[1] += 1.0f; break;
+                case 1: tCat[1] += 1.0f; break;
+                case 2: tDog[1] += 1.0f; break;
+                case 3: tDuck[1] += 1.0f; break;
+                case 4: tTiger[1] += 1.0f; break;
+                default:
+                    break;
+            }
+            break;
+        case 'K':
+            switch (controlModel) {
+                case 0: tBunny[1] -= 1.0f; break;
+                case 1: tCat[1] -= 1.0f; break;
+                case 2: tDog[1] -= 1.0f; break;
+                case 3: tDuck[1] -= 1.0f; break;
+                case 4: tTiger[1] -= 1.0f; break;
+                default:
+                    break;
+            }
+            break;
+        case 'l':
+            switch (controlModel) {
+                case 0: tBunny[2] += 1.0f; break;
+                case 1: tCat[2] += 1.0f; break;
+                case 2: tDog[2] += 1.0f; break;
+                case 3: tDuck[2] += 1.0f; break;
+                case 4: tTiger[2] += 1.0f; break;
+                default:
+                    break;
+            }
+            break;
+        case 'L':
+            switch (controlModel) {
+                case 0: tBunny[2] -= 1.0f; break;
+                case 1: tCat[2] -= 1.0f; break;
+                case 2: tDog[2] -= 1.0f; break;
+                case 3: tDuck[2] -= 1.0f; break;
+                case 4: tTiger[2] -= 1.0f; break;
+                default:
+                    break;
+            }
+            break;
         default:
             break;
     }
+    glutPostRedisplay();
 }
 
 // Callback routine for non-ASCII key entry.
@@ -930,6 +1017,66 @@ void specialKeyInput(int key, int x, int y)
     if (key == GLUT_KEY_SHIFT_L) {
         cameraY -= moveSpeed;
         lookatY -= moveSpeed;
+    }
+    if (key == GLUT_KEY_UP) {
+        switch (controlModel) {
+            case 0:
+                rBunny[0] -= 10.0f; break;
+            case 1:
+                rCat[0] -= 10.0f; break;
+            case 2:
+                rDog[0] -= 10.0f; break;
+            case 3:
+                rDuck[0] -= 10.0f; break;
+            case 4:
+                rTiger[0] -= 10.0f; break;
+            default: break;
+        }
+    }
+    if (key == GLUT_KEY_DOWN) {
+        switch (controlModel) {
+            case 0:
+                rBunny[0] += 10.0f; break;
+            case 1:
+                rCat[0] += 10.0f; break;
+            case 2:
+                rDog[0] += 10.0f; break;
+            case 3:
+                rDuck[0] += 10.0f; break;
+            case 4:
+                rTiger[0] += 10.0f; break;
+            default: break;
+        }
+    }
+    if (key == GLUT_KEY_LEFT) {
+        switch (controlModel) {
+            case 0:
+                rBunny[1] += 10.0f; break;
+            case 1:
+                rCat[1] += 10.0f; break;
+            case 2:
+                rDog[1] += 10.0f; break;
+            case 3:
+                rDuck[1] += 10.0f; break;
+            case 4:
+                rTiger[1] += 10.0f; break;
+            default: break;
+        }
+    }
+    if (key == GLUT_KEY_RIGHT) {
+        switch (controlModel) {
+            case 0:
+                rBunny[1] -= 10.0f; break;
+            case 1:
+                rCat[1] -= 10.0f; break;
+            case 2:
+                rDog[1] -= 10.0f; break;
+            case 3:
+                rDuck[1] -= 10.0f; break;
+            case 4:
+                rTiger[1] -= 10.0f; break;
+            default: break;
+        }
     }
     glutPostRedisplay();
 }
@@ -1014,6 +1161,7 @@ void printInteraction()
 {
     std::cout << "Interaction:" << std::endl;
     std::cout << "Press w, a, s, d to move around, left click mouse to toggle see-around mode on & off." << std::endl;
+    std::cout << "Press 1, 2, 3, 4, 5 to choose a model and use arrow keys to rotate them, use j, k, l, J, K, L to move them." << std::endl;
     std::cout << "Press c to move down, space to move up, right click to bring up the light menu." << std::endl;
     std::cout << "You can freely resize the window." << std::endl;
 }
