@@ -2,7 +2,7 @@
 
 1. [x] Model import
    1. [x] Improve normal calculate algorithm
-   2. [ ] Import the tiger model with texture
+   2. [x] Import the tiger model with texture
 2. [x] Right click menu
    1. [x] Make the menu actually functioning  
    2. [x] Test it 
@@ -10,7 +10,9 @@
    1. [x] Fix camera upward vector  
       no need to fix
    2. [x] Light is somehow moving with camera  
-      somehow fixed this
+      somehow fixed this  
+   3. [x] Add space and shift for moving vertically  
+      shift is slow so I used 'c' instead
 4. [ ] Model movement
 5. [x] Get lighting work  
 6. [x] Solve camera clipping (not urgent)

@@ -40,9 +40,6 @@
 #define OBJ_DUCK 3
 #define OBJ_TIGER 4
 
-
-#define PI 3.14159265358979
-
 using namespace std;
 
 // Function declaration.
@@ -50,9 +47,11 @@ void makeMenu();
 void enableLighting();
 
 // Globals.
+static float PI = 3.1415926;
 static int windowWidth = 800, windowHeight = 800;
-static unsigned int texture[2]; // Array of texture indices.
+static unsigned int texture[1]; // Array of texture indices.
 static unsigned int textureCube; // Skybox.
+static unsigned int textureTiger; // texture for tiger.
 static float cameraX = 0.0f, cameraY = 10.0f, cameraZ = 15.0f; // Camera position.
 static float lookatX = 0.0f, lookatY = 10.0f, lookatZ = 0.0f; // Camera look at position.
 static float upX = 0.0f, upY = 1.0f, upZ = 0.0f; // Camera upward vector.
@@ -60,13 +59,13 @@ static float yaw = PI, pitch = 0.0f; // Camera rotation angle.
 static bool canMoveCamera = false;
 static float sensitivity = 0.001f; // mouse sensitivity
 static bool enableLight = true;
-static float moveSpeed = 5.0f;
+static float moveSpeed = 1.0f;
 static float fov = 70.0f;
 
 // global lighting
 static float lightAmb[] = { 0.0, 0.0, 0.0, 1.0 };
 static float lightDifAndSpec[] = { 1.0, 1.0, 1.0, 1.0 };
-static float lightPos[] = { -20, 20, 20, 1.0 }; // fourth value: 0 for spot light, 1 for directional light
+static float lightPos[] = { -20, 20, 20, 0.0 }; // fourth value: 0 for spot light, 1 for directional light
 static float globAmb[] = { 0.2, 0.2, 0.2, 1.0 };
 
 // Vectors used in model processing.
@@ -81,6 +80,15 @@ static float globAmb[] = { 0.2, 0.2, 0.2, 1.0 };
  *                               these are treated as the index of certain point
  */
 static vector<vector<float>> verticesOf;
+
+/**
+ * The texture coordinate of different objects.
+ * {x0, y0, x1, y1, ... }, { ... }, { ... }
+ *
+ * e.g. {x1, y1} is the texture coordinate of vertex 1
+ *      textureCoordinateOf[thisObj][1*2], textureCoordinateOf[thisObj][1*2 + 1]
+ */
+static vector<vector<float>> textureCoordinateOf;
 
 /**
  * Vectors of triangle-only faces of different objects, in this structure:
@@ -342,6 +350,7 @@ void loadOBJ(const std::string& fileName, int thisObj)
     // clear the data before reading into it
     verticesOf[thisObj].clear();
     facesOf[thisObj].clear();
+    textureCoordinateOf[thisObj].clear();
 
     std::string line;
     int count, vertexIndex1, vertexIndex2, vertexIndex3;
@@ -438,8 +447,19 @@ void loadOBJ(const std::string& fileName, int thisObj)
                 else previousCharacter = currentCharacter;
             }
         }
+        // line has texture coordinate data
+        else if (line.substr(0, 3) == "vt ") {
+            // Initialize a string from the character after "vt " to the end.
+            std::istringstream currentString(line.substr(3));
 
-        // Nothing other than vertex and face data is processed.
+            // Read x, y and z values. The (optional) w value is not read.
+            for (count = 1; count <= 2; count++)
+            {
+                currentString >> coordinateValue;
+                textureCoordinateOf[thisObj].push_back(coordinateValue);
+            }
+        }
+        // Nothing other than vertex and face data and texture coordinate is processed.
     }
 
     // Close the OBJ file.
@@ -462,12 +482,22 @@ void loadOBJAndProcess(const std::string& fileName, int thisObj)
 // Load external textures.
 void loadTextures()
 {
+    // load tiger texture.
+    imageFile *tigerTexture;
+    tigerTexture = getBMP("../models/TigerTexture.bmp");
+    glBindTexture(GL_TEXTURE_2D, textureTiger);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tigerTexture->width, tigerTexture->height, 0,
+                 GL_RGBA, GL_UNSIGNED_BYTE, tigerTexture->data);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
     // Local storage for bmp image data.
-    imageFile *image[2];
+    imageFile *image[1];
 
     // Load the images.
     image[0] = getBMP("../textures/grass.bmp");
-    image[1] = getBMP("../textures/sky.bmp");
 
     // Bind grass image to texture object texture[0].
     glBindTexture(GL_TEXTURE_2D, texture[0]);
@@ -475,15 +505,6 @@ void loadTextures()
                  GL_RGBA, GL_UNSIGNED_BYTE, image[0]->data);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-    // Bind sky image to texture object texture[1]
-    glBindTexture(GL_TEXTURE_2D, texture[1]);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image[1]->width, image[1]->height, 0,
-                 GL_RGBA, GL_UNSIGNED_BYTE, image[1]->data);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
@@ -525,6 +546,7 @@ void setup()
     faceVolumesOf.resize(MODEL_NUMBERS);
     centerOf.resize(MODEL_NUMBERS * 3);
     diagonalLengthOf.resize(MODEL_NUMBERS);
+    textureCoordinateOf.resize(MODEL_NUMBERS);
 
     glClearColor(1.0, 1.0, 1.0, 0.0);
     glEnable(GL_DEPTH_TEST);
@@ -536,7 +558,7 @@ void setup()
     loadOBJAndProcess("../models/Cat.obj", OBJ_CAT);
     loadOBJAndProcess("../models/Dog.obj", OBJ_DOG);
     loadOBJAndProcess("../models/Duck.obj", OBJ_DUCK);
-    // TODO: get tiger and it's texture coordinates
+    loadOBJAndProcess("../models/Tiger.obj", OBJ_TIGER);
 
     // Create texture ids.
     glGenTextures(2, texture);
@@ -571,6 +593,11 @@ void drawMesh(int thisObj, bool isFlatShaded, const float* translate, float scal
 
     float s = scaleAll / diagonalLengthOf[thisObj];
 
+    bool hasTexture = false;
+    if (!textureCoordinateOf[thisObj].empty()) {
+        hasTexture = true;
+    }
+
     glScalef(s, s, s);
     glTranslatef(translate[0]/s, translate[1]/s, translate[2]/s); // move
     // rotate
@@ -594,12 +621,18 @@ void drawMesh(int thisObj, bool isFlatShaded, const float* translate, float scal
         glBegin(GL_TRIANGLES);
         for (int i = 0; i < facesOf[thisObj].size(); i += 3) {
             glNormal3f(faceNormalsOf[thisObj][i],faceNormalsOf[thisObj][i+1],faceNormalsOf[thisObj][i+2]);
+            if (hasTexture) glTexCoord2f(textureCoordinateOf[thisObj][facesOf[thisObj][i]*2],
+                                         textureCoordinateOf[thisObj][facesOf[thisObj][i]*2 + 1]);
             glVertex3f(verticesOf[thisObj][facesOf[thisObj][i]*3],
                        verticesOf[thisObj][facesOf[thisObj][i]*3+1],
                        verticesOf[thisObj][facesOf[thisObj][i]*3+2]);
+            if (hasTexture) glTexCoord2f(textureCoordinateOf[thisObj][facesOf[thisObj][i+1]*2],
+                                         textureCoordinateOf[thisObj][facesOf[thisObj][i+1]*2 + 1]);
             glVertex3f(verticesOf[thisObj][facesOf[thisObj][i+1]*3],
                        verticesOf[thisObj][facesOf[thisObj][i+1]*3+1],
                        verticesOf[thisObj][facesOf[thisObj][i+1]*3+2]);
+            if (hasTexture) glTexCoord2f(textureCoordinateOf[thisObj][facesOf[thisObj][i+2]*2],
+                                         textureCoordinateOf[thisObj][facesOf[thisObj][i+2]*2 + 1]);
             glVertex3f(verticesOf[thisObj][facesOf[thisObj][i+2]*3],
                        verticesOf[thisObj][facesOf[thisObj][i+2]*3+1],
                        verticesOf[thisObj][facesOf[thisObj][i+2]*3+2]);
@@ -613,18 +646,24 @@ void drawMesh(int thisObj, bool isFlatShaded, const float* translate, float scal
             glNormal3f(vertexNormalsOf[thisObj][facesOf[thisObj][i]*3],
                        vertexNormalsOf[thisObj][facesOf[thisObj][i]*3+1],
                        vertexNormalsOf[thisObj][facesOf[thisObj][i]*3+2]);
+            if (hasTexture) glTexCoord2f(textureCoordinateOf[thisObj][facesOf[thisObj][i]*2],
+                                         textureCoordinateOf[thisObj][facesOf[thisObj][i]*2 + 1]);
             glVertex3f(verticesOf[thisObj][facesOf[thisObj][i]*3],
                        verticesOf[thisObj][facesOf[thisObj][i]*3+1],
                        verticesOf[thisObj][facesOf[thisObj][i]*3+2]);
             glNormal3f(vertexNormalsOf[thisObj][facesOf[thisObj][i+1]*3],
                        vertexNormalsOf[thisObj][facesOf[thisObj][i+1]*3+1],
                        vertexNormalsOf[thisObj][facesOf[thisObj][i+1]*3+2]);
+            if (hasTexture) glTexCoord2f(textureCoordinateOf[thisObj][facesOf[thisObj][i+1]*2],
+                                         textureCoordinateOf[thisObj][facesOf[thisObj][i+1]*2 + 1]);
             glVertex3f(verticesOf[thisObj][facesOf[thisObj][i+1]*3],
                        verticesOf[thisObj][facesOf[thisObj][i+1]*3+1],
                        verticesOf[thisObj][facesOf[thisObj][i+1]*3+2]);
             glNormal3f(vertexNormalsOf[thisObj][facesOf[thisObj][i+2]*3],
                        vertexNormalsOf[thisObj][facesOf[thisObj][i+2]*3+1],
                        vertexNormalsOf[thisObj][facesOf[thisObj][i+2]*3+2]);
+            if (hasTexture) glTexCoord2f(textureCoordinateOf[thisObj][facesOf[thisObj][i+2]*2],
+                                         textureCoordinateOf[thisObj][facesOf[thisObj][i+2]*2 + 1]);
             glVertex3f(verticesOf[thisObj][facesOf[thisObj][i+2]*3],
                        verticesOf[thisObj][facesOf[thisObj][i+2]*3+1],
                        verticesOf[thisObj][facesOf[thisObj][i+2]*3+2]);
@@ -744,6 +783,12 @@ void drawScene()
     float rotateDuck[] = {-90.0, 0.0, 0.0};
     float colorDuck[] = {1.0, 1.0, 0.0};
     drawMesh(OBJ_DUCK, false, translateDuck, 10, rotateDuck, colorDuck);
+
+    float translateTiger[] = {-5.0, 5.0, -10.0};
+    float rotateTiger[] = {-90.0, 0.0, 115.0};
+    float colorTiger[] = {1.0, 1.0, 1.0};
+    glBindTexture(GL_TEXTURE_2D, textureTiger);
+    drawMesh(OBJ_TIGER, false, translateTiger, 20, rotateTiger, colorTiger);
 
     // Specify how texture values combine with current surface color values.
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
@@ -867,6 +912,13 @@ void keyInput(unsigned char key, int x, int y)
             cameraX += rightX; lookatX += rightX;
             cameraZ += rightZ; lookatZ += rightZ;
             break;
+        case ' ':
+            cameraY += moveSpeed; lookatY += moveSpeed;
+            break;
+        case 'c':
+        case 'C':
+            cameraY -= moveSpeed; lookatY -= moveSpeed;
+            break;
         default:
             break;
     }
@@ -875,13 +927,9 @@ void keyInput(unsigned char key, int x, int y)
 // Callback routine for non-ASCII key entry.
 void specialKeyInput(int key, int x, int y)
 {
-    if (key == GLUT_KEY_UP) {
-        cameraZ -= 0.5;
-        lookatZ -= 0.5;
-    }
-    if (key == GLUT_KEY_DOWN) {
-        cameraZ += 0.5;
-        lookatZ += 0.5;
+    if (key == GLUT_KEY_SHIFT_L) {
+        cameraY -= moveSpeed;
+        lookatY -= moveSpeed;
     }
     glutPostRedisplay();
 }
@@ -965,7 +1013,9 @@ void makeMenu()
 void printInteraction()
 {
     std::cout << "Interaction:" << std::endl;
-    std::cout << "Press the up and down arrow keys to move the viewpoint over the field." << std::endl;
+    std::cout << "Press w, a, s, d to move around, left click mouse to toggle see-around mode on & off." << std::endl;
+    std::cout << "Press c to move down, space to move up, right click to bring up the light menu." << std::endl;
+    std::cout << "You can freely resize the window." << std::endl;
 }
 
 // Main routine.
