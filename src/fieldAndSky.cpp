@@ -1037,12 +1037,12 @@ void keyUp(unsigned char key, int x, int y) {
         case ' ': keyState[' '] = false; break;
         case 'c':
         case 'C': keyState['c'] = false; break;
-        case 'j': keyState['j'] = false; break;
-        case 'J': keyState['J'] = false; break;
-        case 'k': keyState['k'] = false; break;
-        case 'K': keyState['K'] = false; break;
-        case 'l': keyState['l'] = false; break;
-        case 'L': keyState['L'] = false; break;
+        case 'j':
+        case 'J': keyState['J'] = false; keyState['j'] = false; break;
+        case 'k':
+        case 'K': keyState['K'] = false; keyState['k'] = false; break;
+        case 'l':
+        case 'L': keyState['L'] = false; keyState['l'] = false; break;
         default: break;
     }
 }
