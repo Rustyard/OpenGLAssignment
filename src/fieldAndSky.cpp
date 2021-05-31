@@ -1143,6 +1143,7 @@ void makeMenu()
     glutAttachMenu(GLUT_RIGHT_BUTTON);
 }
 
+// timer of refreshing canvas, refreshes canvas every 15ms (or 66.67 fps)
 void timer(int extra) {
     glutPostRedisplay();
     glutTimerFunc(15, timer, 0);

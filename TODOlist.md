@@ -6,13 +6,11 @@
 2. [x] Right click menu
    1. [x] Make the menu actually functioning  
    2. [x] Test it 
-3. [x] Camera movement  
-   1. [x] Fix camera upward vector  
-      no need to fix
-   2. [x] Light is somehow moving with camera  
+3. [x] Camera movement
+   1. [x] Light is moving with camera  
       somehow fixed this  
-   3. [x] Add space and shift for moving vertically  
-      shift is slow, so I used 'c' instead
+   2. [x] Add space and shift for moving vertically
+   3. [x] Smooth camera movement
 4. [x] Model movement
 5. [x] Get lighting work  
 6. [x] Solve camera clipping (not urgent)
