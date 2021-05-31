@@ -41,6 +41,7 @@ it. When that finishes, click "Open Project". Visual Studio should open.
 You can compile the project by right-clicking the OpenGLAssignMent (not the 
 solution) and select "Select as StartUp project". Now you should be able to 
 compile by clicking the green, triangular "Run" button.
+
 ---
 
 For more information, see [TODOlist](TODOlist.md).
