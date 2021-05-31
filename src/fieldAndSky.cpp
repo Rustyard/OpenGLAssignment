@@ -815,8 +815,8 @@ void moveCamera(int x, int y) {
     if (canMoveCamera) {
         float deltaX = (float)(x - centerX) * sensitivity;
         float deltaY = (float)(y - centerY) * sensitivity;
-        yaw += deltaX;
-        pitch += deltaY;
+        yaw -= deltaX;
+        pitch -= deltaY;
 
         if (pitch > PI/2 - 0.01) pitch = PI/2 - 0.01;
         if (pitch < -PI/2 + 0.01) pitch = -PI/2 + 0.01; // limit on pitch angle
