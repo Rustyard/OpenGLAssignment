@@ -1,25 +1,13 @@
-////////////////////////////////////////////////////////////////////////////////////////////
-// fieldAndSky.cpp
-//
-// This program shows a grass-textured field and a textured sky. The viewpoint can be moved.
-//
-// Interaction:
-// Press the up and down arrow keys to move the viewpoint over the field.
-//
-// Sumanta Guha
-//
-// Texture Credits: See ExperimenterSource/Textures/TEXTURE_CREDITS.txt
-////////////////////////////////////////////////////////////////////////////////////////////
-
 #include <cstdlib>
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <string>
+#include <map>
+#include <sstream>
 
 #include <GL/glew.h>
 #include <GL/freeglut.h>
-#include <sstream>
 
 #include "../include/getBMP.h"
 
@@ -45,6 +33,10 @@ using namespace std;
 // Function declaration.
 void makeMenu();
 void enableLighting();
+void movement();
+
+// Keymap, for smooth keyboard movement control
+map<unsigned char, bool> keyState;
 
 // Globals.
 static float PI = 3.1415926;
@@ -59,7 +51,7 @@ static float yaw = PI, pitch = 0.0f; // Camera rotation angle.
 static bool canMoveCamera = false;
 static float sensitivity = 0.001f; // mouse sensitivity
 static bool enableLight = true;
-static float moveSpeed = 1.0f;
+static float moveSpeed = 0.1f;
 static float fov = 70.0f;
 static int controlModel = 0; // showing which model is in control
 
@@ -116,16 +108,6 @@ static vector<vector<float>> textureCoordinateOf;
  *                                          face  vertex
  */
 static vector<vector<int>> facesOf;
-
-/**
- * Stores the center point for each face of different objects.
- * Similar to facesOf, but for each face fN, we store xN, yN, zN as the center
- * coordinate.
- * Used for drawing face normals as 3d lines.
- * {x0, y0, z0, x1, y1, z1, ... , xN, yN, zN, ... }, { ... }, ...
- * e.g. {x1,y1,z1} is the center point coordinate for face 1.
- */
-// static vector<vector<float>> faceCentersOf;
 
 /**
  * Stores the normal coordinate for each face (face normals) of different objects.
@@ -235,15 +217,6 @@ void ComputeFaceNormals(int thisObj)
         thirdPoint[1]  = verticesOf[thisObj][facesOf[thisObj][i + 2] * 3 + 1];
         thirdPoint[2]  = verticesOf[thisObj][facesOf[thisObj][i + 2] * 3 + 2];
         // FYI:                             ^This is a vertex index^
-
-//        // compute center point of each face (no longer needed here)
-//        tempCenterX = (firstPoint[0] + secondPoint[0] + thirdPoint[0]) / 3;
-//        tempCenterY = (firstPoint[1] + secondPoint[1] + thirdPoint[1]) / 3;
-//        tempCenterZ = (firstPoint[2] + secondPoint[2] + thirdPoint[2]) / 3;
-//
-//        faceCentersOf[thisObj].push_back(tempCenterX);
-//        faceCentersOf[thisObj].push_back(tempCenterY);
-//        faceCentersOf[thisObj].push_back(tempCenterZ);
 
         // calculate 2 vectors from three ordered points
         firstVector[0] = secondPoint[0] - firstPoint[0];
@@ -619,7 +592,6 @@ void drawMesh(int thisObj, bool isFlatShaded, const float* translate, float scal
     glRotatef(angleRotate[1], 0.0, 1.0, 0.0);
     glRotatef(angleRotate[2], 0.0, 0.0, 1.0);
 
-
     // Material property vectors.
     float matAmbAndDif[] = { color[0], color[1], color[2], 1.0 };
     float matSpec[] = { 1.0, 1.0, 1.0, 1.0 };
@@ -684,7 +656,6 @@ void drawMesh(int thisObj, bool isFlatShaded, const float* translate, float scal
         }
         glEnd();
     }
-
 
     glPopMatrix();
 }
@@ -771,8 +742,7 @@ void drawScene()
 
     gluPerspective(fov, (float)windowWidth/(float)windowHeight, 0.01, 5000);
 
-    gluLookAt(cameraX, cameraY, cameraZ,
-              lookatX, lookatY, lookatZ, upX, upY, upZ);
+    gluLookAt(cameraX, cameraY, cameraZ, lookatX, lookatY, lookatZ, upX, upY, upZ);
 
     glMatrixMode(GL_MODELVIEW); // switch back to modelview for usual matrix operations
 
@@ -817,6 +787,8 @@ void drawScene()
     glTexCoord2f(0.0, 8.0); glVertex3f(-100.0, 0.0, -100.0);
     glEnd();
 
+    movement();
+
     glutSwapBuffers();
 }
 
@@ -831,7 +803,7 @@ void checkMouse(int button, int state, int x, int y) {
             }
             else {
                 canMoveCamera = false;
-                glutSetCursor(GLUT_CURSOR_INHERIT);
+                glutSetCursor(GLUT_CURSOR_INHERIT); // reshow cursor
             }
         }
     }
@@ -854,12 +826,6 @@ void moveCamera(int x, int y) {
         lookatZ = cameraZ + 15.0f * cos(yaw) * cos(pitch);
         lookatY = cameraY + 15.0f * sin(pitch);
 
-        // change upward vector
-//        upY = sin(pitch);
-//        upX = -sin(yaw) * cos(pitch);
-//        upZ = -cos(yaw) * cos(pitch);
-
-
         glutWarpPointer(centerX, centerY); // lock mouse in the center
         glutPostRedisplay(); // update canvas
     }
@@ -880,8 +846,8 @@ void resize(int w, int h)
     glLoadIdentity();
 }
 
-// Keyboard input processing routine.
-void keyInput(unsigned char key, int x, int y)
+// camera movement routine.
+void movement()
 {
     float forwardX = moveSpeed * sin(yaw) * cos(pitch);
     float forwardY = moveSpeed * sin(pitch);
@@ -890,194 +856,215 @@ void keyInput(unsigned char key, int x, int y)
     float rightX = -moveSpeed * cos(yaw);
     float rightZ = moveSpeed * sin(yaw);
 
-    switch (key)
-    {
-        case 27:
-            exit(0);
-            break;
-        case 'w':
-        case 'W':
-            cameraX += forwardX; lookatX += forwardX;
-            cameraY += forwardY; lookatY += forwardY;
-            cameraZ += forwardZ; lookatZ += forwardZ;
-            break;
-        case 'a':
-        case 'A':
-            cameraX -= rightX; lookatX -= rightX;
-            cameraZ -= rightZ; lookatZ -= rightZ;
-            break;
-        case 's':
-        case 'S':
-            cameraX -= forwardX; lookatX -= forwardX;
-            cameraY -= forwardY; lookatY -= forwardY;
-            cameraZ -= forwardZ; lookatZ -= forwardZ;
-            break;
-        case 'd':
-        case 'D':
-            cameraX += rightX; lookatX += rightX;
-            cameraZ += rightZ; lookatZ += rightZ;
-            break;
-        case ' ':
-            cameraY += moveSpeed; lookatY += moveSpeed;
-            break;
-        case 'c':
-        case 'C':
-            cameraY -= moveSpeed; lookatY -= moveSpeed;
-            break;
-        case '1':
-            controlModel = 0; cout << "Now controlling: bunny." << endl;
-            break;
-        case '2':
-            controlModel = 1; cout << "Now controlling: cat." << endl;
-            break;
-        case '3':
-            controlModel = 2; cout << "Now controlling: dog." << endl;
-            break;
-        case '4':
-            controlModel = 3; cout << "Now controlling: duck." << endl;
-            break;
-        case '5':
-            controlModel = 4; cout << "Now controlling: tiger." << endl;
-            break;
-        case 'j':
-            switch (controlModel) {
-                case 0: tBunny[0] += 1.0f; break;
-                case 1: tCat[0] += 1.0f; break;
-                case 2: tDog[0] += 1.0f; break;
-                case 3: tDuck[0] += 1.0f; break;
-                case 4: tTiger[0] += 1.0f; break;
-                default:
-                    break;
-            }
-            break;
-        case 'J':
-            switch (controlModel) {
-                case 0: tBunny[0] -= 1.0f; break;
-                case 1: tCat[0] -= 1.0f; break;
-                case 2: tDog[0] -= 1.0f; break;
-                case 3: tDuck[0] -= 1.0f; break;
-                case 4: tTiger[0] -= 1.0f; break;
-                default:
-                    break;
-            }
-            break;
-        case 'k':
-            switch (controlModel) {
-                case 0: tBunny[1] += 1.0f; break;
-                case 1: tCat[1] += 1.0f; break;
-                case 2: tDog[1] += 1.0f; break;
-                case 3: tDuck[1] += 1.0f; break;
-                case 4: tTiger[1] += 1.0f; break;
-                default:
-                    break;
-            }
-            break;
-        case 'K':
-            switch (controlModel) {
-                case 0: tBunny[1] -= 1.0f; break;
-                case 1: tCat[1] -= 1.0f; break;
-                case 2: tDog[1] -= 1.0f; break;
-                case 3: tDuck[1] -= 1.0f; break;
-                case 4: tTiger[1] -= 1.0f; break;
-                default:
-                    break;
-            }
-            break;
-        case 'l':
-            switch (controlModel) {
-                case 0: tBunny[2] += 1.0f; break;
-                case 1: tCat[2] += 1.0f; break;
-                case 2: tDog[2] += 1.0f; break;
-                case 3: tDuck[2] += 1.0f; break;
-                case 4: tTiger[2] += 1.0f; break;
-                default:
-                    break;
-            }
-            break;
-        case 'L':
-            switch (controlModel) {
-                case 0: tBunny[2] -= 1.0f; break;
-                case 1: tCat[2] -= 1.0f; break;
-                case 2: tDog[2] -= 1.0f; break;
-                case 3: tDuck[2] -= 1.0f; break;
-                case 4: tTiger[2] -= 1.0f; break;
-                default:
-                    break;
-            }
-            break;
-        default:
-            break;
+    if (keyState['w']) {
+        cameraX += forwardX; lookatX += forwardX;
+        cameraY += forwardY; lookatY += forwardY;
+        cameraZ += forwardZ; lookatZ += forwardZ;
+    }
+    if (keyState['a']) {
+        cameraX -= rightX; lookatX -= rightX;
+        cameraZ -= rightZ; lookatZ -= rightZ;
+    }
+
+    if (keyState['s']) {
+        cameraX -= forwardX; lookatX -= forwardX;
+        cameraY -= forwardY; lookatY -= forwardY;
+        cameraZ -= forwardZ; lookatZ -= forwardZ;
+    }
+
+    if (keyState['d']) {
+        cameraX += rightX; lookatX += rightX;
+        cameraZ += rightZ; lookatZ += rightZ;
+    }
+
+    if (keyState[' ']) {
+        cameraY += moveSpeed; lookatY += moveSpeed;
+    }
+
+    if (keyState['c']) {
+        cameraY -= moveSpeed; lookatY -= moveSpeed;
+    }
+    if (keyState['j']) {
+        switch (controlModel) {
+            case 0: tBunny[0] += 0.1f; break;
+            case 1: tCat[0] += 0.1f; break;
+            case 2: tDog[0] += 0.1f; break;
+            case 3: tDuck[0] += 0.1f; break;
+            case 4: tTiger[0] += 0.1f; break;
+            default: break;
+        }
+    }
+
+    if (keyState['J']) {
+        switch (controlModel) {
+            case 0: tBunny[0] -= 0.1f; break;
+            case 1: tCat[0] -= 0.1f; break;
+            case 2: tDog[0] -= 0.1f; break;
+            case 3: tDuck[0] -= 0.1f; break;
+            case 4: tTiger[0] -= 0.1f; break;
+            default: break;
+        }
+
+    }
+    if (keyState['k']) {
+        switch (controlModel) {
+            case 0: tBunny[1] += 0.1f; break;
+            case 1: tCat[1] += 0.1f; break;
+            case 2: tDog[1] += 0.1f; break;
+            case 3: tDuck[1] += 0.1f; break;
+            case 4: tTiger[1] += 0.1f; break;
+            default: break;
+        }
+    }
+
+    if (keyState['K']) {
+        switch (controlModel) {
+            case 0: tBunny[1] -= 0.1f; break;
+            case 1: tCat[1] -= 0.1f; break;
+            case 2: tDog[1] -= 0.1f; break;
+            case 3: tDuck[1] -= 0.1f; break;
+            case 4: tTiger[1] -= 0.1f; break;
+            default: break;
+        }
+    }
+    if (keyState['l']) {
+        switch (controlModel) {
+            case 0: tBunny[2] += 0.1f; break;
+            case 1: tCat[2] += 0.1f; break;
+            case 2: tDog[2] += 0.1f; break;
+            case 3: tDuck[2] += 0.1f; break;
+            case 4: tTiger[2] += 0.1f; break;
+            default: break;
+        }
+    }
+    if (keyState['L']) {
+        switch (controlModel) {
+            case 0: tBunny[2] -= 0.1f; break;
+            case 1: tCat[2] -= 0.1f; break;
+            case 2: tDog[2] -= 0.1f; break;
+            case 3: tDuck[2] -= 0.1f; break;
+            case 4: tTiger[2] -= 0.1f; break;
+            default: break;
+        }
+    }
+    if (keyState['y']) {
+        switch (controlModel) {
+            case 0: rBunny[0] -= 1.0f; break;
+            case 1: rCat[0] -= 1.0f; break;
+            case 2: rDog[0] -= 1.0f; break;
+            case 3: rDuck[0] -= 1.0f; break;
+            case 4: rTiger[0] -= 1.0f; break;
+            default: break;
+        }
+    }
+    if (keyState['u']) {
+        switch (controlModel) {
+            case 0: rBunny[0] += 1.0f; break;
+            case 1: rCat[0] += 1.0f; break;
+            case 2: rDog[0] += 1.0f; break;
+            case 3: rDuck[0] += 1.0f; break;
+            case 4: rTiger[0] += 1.0f; break;
+            default: break;
+        }
+    }
+    if (keyState['i']) {
+        switch (controlModel) {
+            case 0: rBunny[1] += 1.0f; break;
+            case 1: rCat[1] += 1.0f; break;
+            case 2: rDog[1] += 1.0f; break;
+            case 3: rDuck[1] += 1.0f; break;
+            case 4: rTiger[1] += 1.0f; break;
+            default: break;
+        }
+    }
+    if (keyState['o']) {
+        switch (controlModel) {
+            case 0: rBunny[1] -= 1.0f; break;
+            case 1: rCat[1] -= 1.0f; break;
+            case 2: rDog[1] -= 1.0f; break;
+            case 3: rDuck[1] -= 1.0f; break;
+            case 4: rTiger[1] -= 1.0f; break;
+            default: break;
+        }
     }
     glutPostRedisplay();
+}
+
+// when certain keys are pressed down
+void keyDown(unsigned char key, int x, int y)
+{
+    switch (key)
+    {
+        case 27: exit(0);
+        case 'w':
+        case 'W': keyState['w'] = true; break;
+        case 'a':
+        case 'A': keyState['a'] = true; break;
+        case 's':
+        case 'S': keyState['s'] = true; break;
+        case 'd':
+        case 'D': keyState['d'] = true; break;
+        case ' ': keyState[' '] = true; break;
+        case 'c':
+        case 'C': keyState['c'] = true; break;
+        case '1': controlModel = 0; cout << "Now controlling: bunny." << endl; break;
+        case '2': controlModel = 1; cout << "Now controlling: cat." << endl; break;
+        case '3': controlModel = 2; cout << "Now controlling: dog." << endl; break;
+        case '4': controlModel = 3; cout << "Now controlling: duck." << endl; break;
+        case '5': controlModel = 4; cout << "Now controlling: tiger." << endl; break;
+        case 'j': keyState['j'] = true; break;
+        case 'J': keyState['J'] = true; break;
+        case 'k': keyState['k'] = true; break;
+        case 'K': keyState['K'] = true; break;
+        case 'l': keyState['l'] = true; break;
+        case 'L': keyState['L'] = true; break;
+        default: break;
+    }
+}
+
+// when certain keys are released
+void keyUp(unsigned char key, int x, int y) {
+    switch (key)
+    {
+        case 'w':
+        case 'W': keyState['w'] = false; break;
+        case 'a':
+        case 'A': keyState['a'] = false; break;
+        case 's':
+        case 'S': keyState['s'] = false; break;
+        case 'd':
+        case 'D': keyState['d'] = false; break;
+        case ' ': keyState[' '] = false; break;
+        case 'c':
+        case 'C': keyState['c'] = false; break;
+        case 'j': keyState['j'] = false; break;
+        case 'J': keyState['J'] = false; break;
+        case 'k': keyState['k'] = false; break;
+        case 'K': keyState['K'] = false; break;
+        case 'l': keyState['l'] = false; break;
+        case 'L': keyState['L'] = false; break;
+        default: break;
+    }
 }
 
 // Callback routine for non-ASCII key entry.
 void specialKeyInput(int key, int x, int y)
 {
-    if (key == GLUT_KEY_SHIFT_L) {
-        cameraY -= moveSpeed;
-        lookatY -= moveSpeed;
-    }
-    if (key == GLUT_KEY_UP) {
-        switch (controlModel) {
-            case 0:
-                rBunny[0] -= 10.0f; break;
-            case 1:
-                rCat[0] -= 10.0f; break;
-            case 2:
-                rDog[0] -= 10.0f; break;
-            case 3:
-                rDuck[0] -= 10.0f; break;
-            case 4:
-                rTiger[0] -= 10.0f; break;
-            default: break;
-        }
-    }
-    if (key == GLUT_KEY_DOWN) {
-        switch (controlModel) {
-            case 0:
-                rBunny[0] += 10.0f; break;
-            case 1:
-                rCat[0] += 10.0f; break;
-            case 2:
-                rDog[0] += 10.0f; break;
-            case 3:
-                rDuck[0] += 10.0f; break;
-            case 4:
-                rTiger[0] += 10.0f; break;
-            default: break;
-        }
-    }
-    if (key == GLUT_KEY_LEFT) {
-        switch (controlModel) {
-            case 0:
-                rBunny[1] += 10.0f; break;
-            case 1:
-                rCat[1] += 10.0f; break;
-            case 2:
-                rDog[1] += 10.0f; break;
-            case 3:
-                rDuck[1] += 10.0f; break;
-            case 4:
-                rTiger[1] += 10.0f; break;
-            default: break;
-        }
-    }
-    if (key == GLUT_KEY_RIGHT) {
-        switch (controlModel) {
-            case 0:
-                rBunny[1] -= 10.0f; break;
-            case 1:
-                rCat[1] -= 10.0f; break;
-            case 2:
-                rDog[1] -= 10.0f; break;
-            case 3:
-                rDuck[1] -= 10.0f; break;
-            case 4:
-                rTiger[1] -= 10.0f; break;
-            default: break;
-        }
-    }
+    if (key == GLUT_KEY_SHIFT_L) keyState['c'] = true;
+    if (key == GLUT_KEY_UP) keyState['y'] = true;
+    if (key == GLUT_KEY_DOWN) keyState['u'] = true;
+    if (key == GLUT_KEY_LEFT) keyState['i'] = true;
+    if (key == GLUT_KEY_RIGHT) keyState['o'] = true;
+    glutPostRedisplay();
+}
+
+// When you release these keys
+void specialKeyUpInput(int key, int x, int y) {
+    if (key == GLUT_KEY_SHIFT_L) keyState['c'] = false;
+    if (key == GLUT_KEY_UP) keyState['y'] = false;
+    if (key == GLUT_KEY_DOWN) keyState['u'] = false;
+    if (key == GLUT_KEY_LEFT) keyState['i'] = false;
+    if (key == GLUT_KEY_RIGHT) keyState['o'] = false;
     glutPostRedisplay();
 }
 
@@ -1156,13 +1143,18 @@ void makeMenu()
     glutAttachMenu(GLUT_RIGHT_BUTTON);
 }
 
+void timer(int extra) {
+    glutPostRedisplay();
+    glutTimerFunc(15, timer, 0);
+}
+
 // Routine to output interaction instructions to the C++ window.
 void printInteraction()
 {
     std::cout << "Interaction:" << std::endl;
     std::cout << "Press w, a, s, d to move around, left click mouse to toggle see-around mode on & off." << std::endl;
-    std::cout << "Press 1, 2, 3, 4, 5 to choose a model and use arrow keys to rotate them, use j, k, l, J, K, L to move them." << std::endl;
-    std::cout << "Press c to move down, space to move up, right click to bring up the light menu." << std::endl;
+    std::cout << "Press 1, 2, 3, 4, 5 to choose a model and use arrow keys to rotate them, use j, k, l, J, K, L (NOTE: USE RIGHT SHIFT or CAPSLOCK) to move them." << std::endl;
+    std::cout << "Press c or shift to move down, space to move up, right click to bring up the light menu." << std::endl;
     std::cout << "You can freely resize the window." << std::endl;
 }
 
@@ -1181,10 +1173,16 @@ int main(int argc, char **argv)
     glutCreateWindow("fieldAndSky.cpp");
     glutDisplayFunc(drawScene);
     glutReshapeFunc(resize);
-    glutKeyboardFunc(keyInput);
+
+    glutKeyboardFunc(keyDown);
+    glutKeyboardUpFunc(keyUp);
     glutSpecialFunc(specialKeyInput);
+    glutSpecialUpFunc(specialKeyUpInput);
+
     glutMouseFunc(checkMouse);
     glutPassiveMotionFunc(moveCamera);
+
+    glutTimerFunc(0, timer, 0);
 
     glewExperimental = GL_TRUE;
     glewInit();
