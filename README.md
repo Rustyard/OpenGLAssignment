@@ -8,9 +8,19 @@ You will need glm-0.9.7.5, glew-1.10.0-win32 and freeglut-MSVC-2.8.1-1.mp, extra
 and put them in "C:\OpenGLwrappers\" (or anywhere else, but you will need to edit CMakeLists.txt
 manually for the compiler to work).
 
-### 如何使用Visual Studio编译运行
+*因为本作业是使用CLion完成的，使用Visual Studio的用户要按照以下步骤操作以使用Visual Studio编译运行。*
 
-*因为本作业是使用CLion完成的，使用Visual Studio的用户如果不想手动修改代码，就按照以下步骤操作以使用Visual Studio编译运行。*
+### 如何使用Visual Studio编译运行(修改代码篇)
+
+1. 假如你只复制了[fieldAndSky.cpp](src/fieldAndSky.cpp)这个文件到你的OpenGL项目里，首先确保你的Visual Studio已经配置好能够编译运行OpenGL程序（有include glm-0.9.7.5, glew-1.10.0-win32和freeglut-MSVC-2.8.1-1.mp以及对应的.lib文件），接下来，请关注[fieldAndSky.cpp](src/fieldAndSky.cpp)中的这几行：
+  
+    > *第12行，第474行，第487行，第503-508行，第544-548行。*  
+  
+    根据这几行中资源文件的路径以及你电脑上相应资源文件的路径进行调整，怎么调整都可以，但目标是**让编译得到的可执行文件能够找到这些资源**。
+
+2. 假如你根据我的文件结构调整了你的项目的文件结构（即在你的项目中按我的方式放置代码和资源文件），就不需要修改代码了，但是可能还需要做些调整。
+
+### 如何使用Visual Studio编译运行(CMake篇)
 
 事前准备：git clone 本仓库，安装Python3（所有用户）以及CMake（英文版）  
 （以及把glm-0.9.7.5, glew-1.10.0-win32和freeglut-MSVC-2.8.1-1.mp这三个库放在"C:\OpenGLwrappers\"中，如果你有上计算机图形学的实验课那么你大概已经做过了。）
@@ -25,9 +35,9 @@ manually for the compiler to work).
 
 ### Using CLion
 
-git clone this repository, and you are ready to compile (probably).
+git clone this repository, and you are ready to compile (probably, idk).
 
-### Using Visual Studio
+### Using Visual Studio (with CMake)
 
 Download and install some version of Microsoft Visual Studio with C++ support,
 install Python 3 for all users and install CMake.
