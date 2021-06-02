@@ -1143,7 +1143,7 @@ void makeMenu()
     glutAttachMenu(GLUT_RIGHT_BUTTON);
 }
 
-// timer of refreshing canvas, refreshes canvas every 15ms (or 66.67 fps)
+// timer of refreshing canvas, refreshes canvas every 15ms (66.67 fps)
 void timer(int extra) {
     glutPostRedisplay();
     glutTimerFunc(15, timer, 0);
@@ -1155,7 +1155,7 @@ void printInteraction()
     std::cout << "Interaction:" << std::endl;
     std::cout << "Press w, a, s, d to move around, left click mouse to toggle see-around mode on & off." << std::endl;
     std::cout << "Press 1, 2, 3, 4, 5 to choose a model and use arrow keys to rotate them, use j, k, l, J, K, L (NOTE: USE RIGHT SHIFT or CAPSLOCK) to move them." << std::endl;
-    std::cout << "Press c or shift to move down, space to move up, right click to bring up the light menu." << std::endl;
+    std::cout << "Press c or left shift to move down, space to move up, right click to bring up the light menu." << std::endl;
     std::cout << "You can freely resize the window." << std::endl;
 }
 
