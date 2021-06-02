@@ -328,7 +328,7 @@ void ComputeVertexNormals(int thisObj)
 }
 
 /**
- * Load an OBJ file into verticesOf[thisObj] and facesOf[thisObj].
+ * Load an OBJ file into verticesOf[thisObj] and facesOf[thisObj] (and textureCoordinateOf[thisObj] if it has texture data).
  * @param fileName The name of OBJ file to load.
  * @param thisObj The object index.
  */
@@ -439,7 +439,7 @@ void loadOBJ(const std::string& fileName, int thisObj)
             // Initialize a string from the character after "vt " to the end.
             std::istringstream currentString(line.substr(3));
 
-            // Read x, y and z values. The (optional) w value is not read.
+            // Read x, y values.
             for (count = 1; count <= 2; count++)
             {
                 currentString >> coordinateValue;
@@ -566,14 +566,14 @@ void setup()
  * Draw certain model in the scene.
  * @param thisObj The object index.
  * @param isFlatShaded Is render style flat or smooth.
- * @param x Offset for x-axis.
- * @param y Offset for y-axis.
- * @param z Offset for z-axis.
- * @param s Relative scale.
+ * @param translate Parameters to move the object around.
+ * @param scaleAll Relative scale on all 3 axis.
+ * @param angleRotate Parameters to rotate the object.
+ * @param color Object color (if it is texture-less)
  */
 void drawMesh(int thisObj, bool isFlatShaded, const float* translate, float scaleAll, float* angleRotate, float* color)
 {
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE); // color mix mode GL_MODULATE, important for shade effect
     glPushMatrix();
 
     glEnable(GL_NORMALIZE); // crucial operation when scaling model: re-normalize all normals
@@ -602,6 +602,7 @@ void drawMesh(int thisObj, bool isFlatShaded, const float* translate, float scal
     glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, matSpec);
     glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, matShine);
 
+    // draw the triangles
     if (isFlatShaded) {
         glShadeModel(GL_FLAT);
         glBegin(GL_TRIANGLES);
@@ -683,7 +684,7 @@ void drawSkybox() {
     glRotatef(pitch/PI*180, 1.0, 0.0, 0.0);
     glBindTexture(GL_TEXTURE_CUBE_MAP, textureCube);
     glBegin(GL_POLYGON);
-    // support 2:1 widescreen
+    // support (at most) 2:1 widescreen
     glTexCoord3f(-2.0, 1.0, 1.0); glVertex3f(-1000.0, -500.0, -500.0);
     glTexCoord3f(2.0, 1.0, 1.0); glVertex3f(1000.0, -500.0, -500.0);
     glTexCoord3f(2.0, -1.0, 1.0); glVertex3f(1000.0, 500.0, -500.0);
@@ -695,7 +696,7 @@ void drawSkybox() {
     glDepthMask(GL_TRUE);
     glDisable(GL_TEXTURE_CUBE_MAP);
 
-    // clear texture rotation
+    // clear texture rotation, otherwise any other textures will rotate as well.
     glMatrixMode(GL_TEXTURE);
     glLoadIdentity();
 }
@@ -744,7 +745,7 @@ void drawScene()
 
     gluLookAt(cameraX, cameraY, cameraZ, lookatX, lookatY, lookatZ, upX, upY, upZ);
 
-    glMatrixMode(GL_MODELVIEW); // switch back to modelview for usual matrix operations
+    glMatrixMode(GL_MODELVIEW); // switch back to gl_modelview for usual matrix operations
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
@@ -787,6 +788,7 @@ void drawScene()
     glTexCoord2f(0.0, 8.0); glVertex3f(-100.0, 0.0, -100.0);
     glEnd();
 
+    // smooth movement-per-frame with a keymap
     movement();
 
     glutSwapBuffers();
@@ -799,7 +801,7 @@ void checkMouse(int button, int state, int x, int y) {
             if (!canMoveCamera) {
                 canMoveCamera = true;
                 glutSetCursor(GLUT_CURSOR_NONE); // hide cursor
-                glutWarpPointer(windowWidth / 2, windowHeight / 2);
+                glutWarpPointer(windowWidth / 2, windowHeight / 2); // snap cursor into the center of canvas
             }
             else {
                 canMoveCamera = false;
@@ -813,6 +815,7 @@ void checkMouse(int button, int state, int x, int y) {
 void moveCamera(int x, int y) {
     int centerX = windowWidth/2, centerY = windowHeight/2;
     if (canMoveCamera) {
+        // how much the cursor has moved
         float deltaX = (float)(x - centerX) * sensitivity;
         float deltaY = (float)(y - centerY) * sensitivity;
         yaw -= deltaX;
@@ -821,7 +824,7 @@ void moveCamera(int x, int y) {
         if (pitch > PI/2 - 0.01) pitch = PI/2 - 0.01;
         if (pitch < -PI/2 + 0.01) pitch = -PI/2 + 0.01; // limit on pitch angle
 
-        // change look-at coordinate
+        // change look-at coordinate, effectively rotate the camera
         lookatX = cameraX + 15.0f * sin(yaw) * cos(pitch);
         lookatZ = cameraZ + 15.0f * cos(yaw) * cos(pitch);
         lookatY = cameraY + 15.0f * sin(pitch);
@@ -846,7 +849,7 @@ void resize(int w, int h)
     glLoadIdentity();
 }
 
-// camera movement routine.
+// camera and model move&rotate routine.
 void movement()
 {
     float forwardX = moveSpeed * sin(yaw) * cos(pitch);
